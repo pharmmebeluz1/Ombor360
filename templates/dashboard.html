@@ -1,4 +1,58 @@
-{% extends 'base.html' %}{% block content %}<h2>Ombor360° nazorat markazi</h2><div class="row g-3 my-2">
-{% for title,val in [('Ombor tannarxi',inventory_cost),('Sotuv qiymati',inventory_sale),('Potensial foyda',inventory_sale-inventory_cost),('Jami tushum',total_revenue),('Jami xarajat',total_expense),('Sof foyda',profit)] %}<div class="col-md-4 col-xl-2"><div class="card p-3"><div class="small text-secondary">{{ title }}</div><div class="kpi">{{ val|money }}</div><div class="small">so‘m</div></div></div>{% endfor %}</div>
-<div class="row g-3 mt-1"><div class="col-lg-6"><div class="card p-3"><h5>Kam qolgan mahsulotlar ({{ low_stock|length }})</h5><table class="table table-sm"><tr><th>Mahsulot</th><th>Qoldiq</th><th>Min.</th></tr>{% for p in low_stock %}<tr class="table-warning"><td>{{ p.name }}</td><td>{{ '%g'|format(p.quantity) }} {{ p.unit }}</td><td>{{ '%g'|format(p.min_quantity) }}</td></tr>{% else %}<tr><td colspan="3">Hammasi yetarli.</td></tr>{% endfor %}</table></div></div>
-<div class="col-lg-6"><div class="card p-3"><h5>Oxirgi harakatlar</h5><table class="table table-sm"><tr><th>№</th><th>Turi</th><th>Mahsulot</th><th>Miqdor</th></tr>{% for m in recent %}<tr><td>{{ m.movement_no }}</td><td>{{ m.movement_type }}</td><td>{{ m.product.name }}</td><td>{{ '%g'|format(m.quantity) }} {{ m.product.unit }}</td></tr>{% endfor %}</table><div class="small">Faol pul so‘rovlari: {{ pending_cash }}</div></div></div></div>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}Nazorat markazi — Ombor360°{% endblock %}
+{% block content %}
+<div class="dashboard-grid">
+  <div class="kpi-card" style="--kpi-color:#0aa45f;--kpi-tint:#e8fbf0"><div class="kpi-top"><div class="icon-box"><i class="bi bi-box-fill"></i></div><div><div class="kpi-label">Jami ombor qiymati</div><div class="kpi-number">{{ inventory_cost|money }}</div><div class="kpi-unit">so‘m</div></div></div><div class="kpi-foot"><span class="pill pill-green"><i class="bi bi-arrow-up"></i> Tannarx</span><div class="muted-note">Ombordagi jami qiymat</div></div></div>
+  <div class="kpi-card" style="--kpi-color:#1683ff;--kpi-tint:#edf6ff"><div class="kpi-top"><div class="icon-box"><i class="bi bi-arrow-down"></i></div><div><div class="kpi-label">Bugungi kirim</div><div class="kpi-number">{{ today_in_value|money }}</div><div class="kpi-unit">so‘m</div></div></div><div class="kpi-foot"><span class="pill pill-blue">{{ today_in_count }} ta</span><div class="muted-note">Bugungi operatsiyalar</div></div></div>
+  <div class="kpi-card" style="--kpi-color:#ff8a1f;--kpi-tint:#fff4e8"><div class="kpi-top"><div class="icon-box"><i class="bi bi-arrow-up"></i></div><div><div class="kpi-label">Bugungi chiqim</div><div class="kpi-number">{{ today_out_value|money }}</div><div class="kpi-unit">so‘m</div></div></div><div class="kpi-foot"><span class="pill pill-orange">{{ today_out_count }} ta</span><div class="muted-note">Bugungi operatsiyalar</div></div></div>
+  <div class="kpi-card" style="--kpi-color:#0aa45f;--kpi-tint:#e8fbf0"><div class="kpi-top"><div class="icon-box"><i class="bi bi-bar-chart-fill"></i></div><div><div class="kpi-label">Sof foyda</div><div class="kpi-number">{{ profit|money }}</div><div class="kpi-unit">so‘m</div></div></div><div class="kpi-foot"><span class="pill {% if profit >= 0 %}pill-green{% else %}pill-red{% endif %}">{% if profit >= 0 %}<i class="bi bi-arrow-up"></i>{% else %}<i class="bi bi-arrow-down"></i>{% endif %} Hozirgi</span><div class="muted-note">Tushum − xarajat</div></div></div>
+  <div class="kpi-card" style="--kpi-color:#ef4444;--kpi-tint:#fff0f0"><div class="kpi-top"><div class="icon-box"><i class="bi bi-exclamation-triangle-fill"></i></div><div><div class="kpi-label">Kam qolgan</div><div class="kpi-number">{{ low_stock|length }} ta</div><div class="kpi-unit">Mahsulot</div></div></div><div class="kpi-foot"><span class="pill pill-red">Nazorat</span><div class="muted-note">Minimal qoldiqdan past</div></div></div>
+  <div class="kpi-card" style="--kpi-color:#7c3aed;--kpi-tint:#f3efff"><div class="kpi-top"><div class="icon-box"><i class="bi bi-people-fill"></i></div><div><div class="kpi-label">Faol xodimlar</div><div class="kpi-number">{{ active_employees }} ta</div><div class="kpi-unit">Tizimda faol</div></div></div><div class="kpi-foot"><span class="pill pill-purple">Xodimlar</span><div class="muted-note">Faol hisoblar</div></div></div>
+</div>
+
+<div class="panel-grid">
+  <section class="panel">
+    <div class="panel-head"><h2 class="panel-title"><i class="bi bi-bar-chart-fill"></i>Kirim va chiqim grafigi</h2><div class="mini-select"><i class="bi bi-calendar3 me-1"></i> Oxirgi 6 oy</div></div>
+    <div class="chart-wrap"><canvas id="movementChart"></canvas></div>
+  </section>
+  <section class="panel">
+    <div class="panel-head"><h2 class="panel-title"><i class="bi bi-exclamation-triangle-fill text-danger"></i>Kam qolgan mahsulotlar</h2><a class="panel-link" href="{{ url_for('products') }}">Barchasini ko‘rish <i class="bi bi-arrow-right"></i></a></div>
+    <div class="table-responsive"><table class="data-table"><thead><tr><th>№</th><th>Mahsulot nomi</th><th>Qoldiq</th><th>Min.</th><th>Holat</th></tr></thead><tbody>{% for p in low_stock[:5] %}<tr><td>{{ loop.index }}</td><td><span class="product-dot"><i class="bi bi-box-seam"></i></span>{{ p.name }}</td><td>{{ p.quantity|qty }} {{ p.unit }}</td><td>{{ p.min_quantity|qty }}</td><td><span class="status-badge status-warn">Kam</span></td></tr>{% else %}<tr><td colspan="5" class="text-center text-secondary py-4">Hamma mahsulot yetarli.</td></tr>{% endfor %}</tbody></table></div>
+  </section>
+</div>
+
+<div class="panel-grid">
+  <section class="panel">
+    <div class="panel-head"><h2 class="panel-title"><i class="bi bi-clock-history"></i>Oxirgi harakatlar</h2><a class="panel-link" href="{{ url_for('movements') }}">Barchasini ko‘rish <i class="bi bi-arrow-right"></i></a></div>
+    <div class="table-responsive"><table class="data-table"><thead><tr><th>Vaqt</th><th>Turi</th><th>Mahsulot</th><th>Miqdor</th><th>Mas’ul</th></tr></thead><tbody>{% for m in recent[:5] %}<tr><td>{{ m.created_at.strftime('%H:%M') }}</td><td>{% if m.movement_type in ['IN','RETURN'] %}<span class="status-badge status-in">Kirim</span>{% else %}<span class="status-badge status-out">Chiqim</span>{% endif %}</td><td>{{ m.product.name }}</td><td>{{ m.quantity|qty }} {{ m.product.unit }}</td><td>{{ m.created_by.full_name }}</td></tr>{% else %}<tr><td colspan="5" class="text-center text-secondary py-4">Hozircha harakat yo‘q.</td></tr>{% endfor %}</tbody></table></div>
+  </section>
+  <section class="panel">
+    <div class="panel-head"><h2 class="panel-title"><i class="bi bi-arrow-up-circle-fill"></i>Eng ko‘p kirgan mahsulotlar</h2><a class="panel-link" href="{{ url_for('movements') }}">Barchasini ko‘rish <i class="bi bi-arrow-right"></i></a></div>
+    <div class="table-responsive"><table class="data-table"><thead><tr><th>№</th><th>Mahsulot</th><th style="width:42%">Miqdor</th><th></th></tr></thead><tbody>{% for item in top_incoming %}<tr><td>{{ loop.index }}</td><td><span class="product-dot"><i class="bi bi-box-seam"></i></span>{{ item.name }}</td><td><div class="progress-track"><div class="progress-fill" style="width:{{ item.percent }}%"></div></div></td><td class="text-end text-nowrap">{{ item.quantity|qty }} {{ item.unit }}</td></tr>{% else %}<tr><td colspan="4" class="text-center text-secondary py-4">Kirim ma’lumoti yo‘q.</td></tr>{% endfor %}</tbody></table></div>
+  </section>
+</div>
+
+<div class="bottom-grid">
+  <section class="panel">
+    <div class="panel-head"><h2 class="panel-title"><i class="bi bi-building-fill"></i>Ombor holati</h2></div>
+    <div class="warehouse-card"><img class="warehouse-visual" src="{{ url_for('static', filename='logo.png') }}" alt="Ombor"><div class="stat-boxes"><div class="stat-mini"><div class="small text-secondary"><i class="bi bi-box-fill text-success me-1"></i> Jami mahsulot</div><div class="value">{{ total_product_types }} ta</div><div class="small text-success fw-bold">Nomenklatura</div></div><div class="stat-mini blue"><div class="small text-secondary"><i class="bi bi-layers-fill text-primary me-1"></i> Jami qoldiq</div><div class="value">{{ total_quantity|qty }}</div><div class="small text-primary fw-bold">Barcha birliklar</div></div></div></div>
+  </section>
+  <section class="panel">
+    <div class="panel-head"><h2 class="panel-title"><i class="bi bi-cash-coin text-warning"></i>Pul so‘rovlari</h2><a class="panel-link" href="{{ url_for('cash_requests') }}">Barchasini ko‘rish <i class="bi bi-arrow-right"></i></a></div>
+    <div class="table-responsive"><table class="data-table"><thead><tr><th>Sana</th><th>Xarajat nomi</th><th>Summa</th><th>Holat</th></tr></thead><tbody>{% for r in cash_preview %}<tr><td>{{ r.created_at.strftime('%d.%m.%Y') }}</td><td>{{ r.reason|truncate(22) }}</td><td>{{ r.amount|money }}</td><td>{% if r.status=='PENDING' %}<span class="status-badge status-pending">Kutilmoqda</span>{% elif r.status in ['APPROVED','PAID','RECEIVED'] %}<span class="status-badge status-ok">Tasdiqlandi</span>{% else %}<span class="status-badge status-reject">Rad etildi</span>{% endif %}</td></tr>{% else %}<tr><td colspan="4" class="text-center text-secondary py-4">Pul so‘rovi yo‘q.</td></tr>{% endfor %}</tbody></table></div>
+  </section>
+  <section class="panel">
+    <div class="panel-head"><h2 class="panel-title"><i class="bi bi-lightning-charge-fill text-warning"></i>Tezkor tugmalar</h2></div>
+    <div class="quick-grid">{% if current_user.role in ['admin','manager','warehouse'] %}<a class="quick-btn q-green" href="{{ url_for('movement', kind='IN') }}"><i class="bi bi-plus-circle-fill"></i>Kirim qilish</a><a class="quick-btn q-blue" href="{{ url_for('movement', kind='OUT') }}"><i class="bi bi-dash-circle-fill"></i>Chiqim qilish</a><a class="quick-btn q-purple" href="{{ url_for('products') }}"><i class="bi bi-box-seam-fill"></i>Mahsulot qo‘shish</a>{% endif %}{% if current_user.role in ['admin','manager'] %}<a class="quick-btn q-gray" href="{{ url_for('reports') }}"><i class="bi bi-file-earmark-bar-graph-fill"></i>Hisobot olish</a>{% else %}<a class="quick-btn q-gray" href="{{ url_for('movements') }}"><i class="bi bi-list-check"></i>Harakatlar</a>{% endif %}</div>
+  </section>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
+<script>
+const ctx=document.getElementById('movementChart');
+if(ctx && window.Chart){
+ new Chart(ctx,{type:'bar',data:{labels:{{ chart_labels|tojson }},datasets:[{label:'Kirim',data:{{ chart_in|tojson }},backgroundColor:'#16b86a',borderRadius:6,borderSkipped:false},{label:'Chiqim',data:{{ chart_out|tojson }},backgroundColor:'#2697ff',borderRadius:6,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{usePointStyle:true,boxWidth:8,font:{size:11}}},tooltip:{callbacks:{label:(c)=>c.dataset.label+': '+new Intl.NumberFormat('uz-UZ').format(c.raw)+' so‘m'}}},scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{beginAtZero:true,grid:{color:'#edf2f5'},ticks:{font:{size:10},callback:(v)=>new Intl.NumberFormat('uz-UZ',{notation:'compact'}).format(v)}}}}});
+}
+</script>
+{% endblock %}

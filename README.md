@@ -1,8 +1,22 @@
-# Ombor360°
+# Ombor360° — Modern Dashboard v2
 
-Ombor, kirim-chiqim, kassa, xodim avansi, oylik va sof foyda nazorati uchun Flask MVP.
+Ombor, kirim-chiqim, kassa, xodim avansi, oylik va sof foyda nazorati uchun Flask dasturi.
 
-## MVP ichida
+## v2 yangiliklari
+- Yangi premium Ombor360° bosh sahifa dizayni
+- 6 ta KPI: ombor qiymati, bugungi kirim, bugungi chiqim, sof foyda, kam qolgan mahsulot, faol xodimlar
+- Oxirgi 6 oy kirim/chiqim grafigi
+- Kam qolgan mahsulotlar paneli
+- Oxirgi harakatlar
+- Eng ko‘p kirgan mahsulotlar TOP-5
+- Pul so‘rovlari preview
+- Tezkor Kirim / Chiqim / Mahsulot / Hisobot tugmalari
+- Mahsulot qidirish
+- Hisobotlar va Sozlamalar sahifasi
+- Telefon/planshet uchun moslashuvchan menyu
+- Jinja format xatolari tuzatildi
+
+## Asosiy funksiyalar
 - Mahsulotlar va minimal qoldiq
 - Kirim / chiqim / qaytim
 - Mashina, davlat raqami, haydovchi, kim berdi / kim oldi
@@ -12,58 +26,28 @@ Ombor, kirim-chiqim, kassa, xodim avansi, oylik va sof foyda nazorati uchun Flas
 - Oylikni oy bo‘yicha yopish
 - Tushum / xarajat / sof foyda
 - Audit tarixi
-- Role: admin, manager, warehouse, cashier, accountant, employee
-- Telegram bot uchun boshlang‘ich modul
+- Rollar: admin, manager, warehouse, cashier, accountant, employee
 
-## Lokal ishga tushirish (Windows)
-```bash
-python -m venv venv
-venv\Scripts\activate
-pip install -r requirements.txt
-copy .env.example .env
-flask --app app init-db
-python app.py
-```
-Brauzer: http://127.0.0.1:5000
-
-### Test loginlar
+## Test loginlar
 - Rahbar: `admin` / `admin123`
 - Omborchi: `ombor` / `1234`
 - Kassir: `kassir` / `1234`
 - Buxgalter: `buxgalter` / `1234`
 
-**Birinchi kirishda parollarni albatta almashtiring.**
+Birinchi real foydalanishda parollarni almashtiring.
 
-## GitHub'ga yuklash
-1. Yangi repository yarating, masalan `ombor360`.
-2. Shu papkadagi barcha faylni repository'ga yuklang.
-3. Render/Railway'da Python Web Service sifatida ulang.
-
-### Render Start Command
-```bash
-gunicorn app:app
-```
-
-### Render Build Command
+## Render
+Build Command:
 ```bash
 pip install -r requirements.txt
 ```
 
-Deploydan keyin Shell orqali bir marta:
+Start Command:
 ```bash
-flask --app app init-db
+gunicorn app:app
 ```
+
+Render GitHub repositoryga ulangan bo‘lsa, GitHubdagi yangi commitdan keyin avtomatik qayta deploy qiladi.
 
 ## Muhim
-SQLite MVP uchun. Real ishlab chiqarishda PostgreSQL ishlatish tavsiya qilinadi.
-`DATABASE_URL` ga PostgreSQL manzilini berish mumkin.
-
-## Kamera
-Hozir harakat kartasiga `camera_url` qo‘yiladi. Real NVR/DVR integratsiyasi uchun kamera markasi va modeli kerak bo‘ladi (Hikvision/Dahua va h.k.).
-
-## Telegram
-`.env` faylga `TELEGRAM_BOT_TOKEN` va `PUBLIC_BASE_URL` kiriting, keyin:
-```bash
-python bot.py
-```
-Hozir bot web kabinetga kirish tugmasini beradi. Keyingi bosqichda pul so‘rovi/tasdiqlashni to‘liq bot ichiga ko‘chirish mumkin.
+SQLite sinov/MVP uchun. Doimiy real ishlatish uchun PostgreSQL tavsiya etiladi, chunki Render Free servisida lokal SQLite fayli doimiy saqlanishiga tayanib bo‘lmaydi.

@@ -1,6 +1,7 @@
 import os
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from functools import wraps
+from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 from flask import Flask, abort, flash, redirect, render_template, request, url_for
@@ -55,7 +56,30 @@ def next_no(prefix, model):
 
 
 def money(v):
-    return f"{v:,.0f}".replace(",", " ")
+    return f"{float(v or 0):,.0f}".replace(",", " ")
+
+
+def qty(v):
+    value = float(v or 0)
+    return f"{value:.2f}".rstrip("0").rstrip(".")
+
+
+def tashkent_now():
+    return datetime.now(ZoneInfo("Asia/Tashkent"))
+
+
+def tashkent_day_utc_range():
+    now_local = tashkent_now()
+    start_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+    end_local = start_local + timedelta(days=1)
+    start_utc = start_local.astimezone(timezone.utc).replace(tzinfo=None)
+    end_utc = end_local.astimezone(timezone.utc).replace(tzinfo=None)
+    return start_utc, end_utc
+
+
+def shift_month(year, month, offset):
+    n = year * 12 + (month - 1) + offset
+    return n // 12, n % 12 + 1
 
 
 def month_range(month_key):
@@ -81,6 +105,7 @@ def seed_defaults():
 
 
 app.jinja_env.filters["money"] = money
+app.jinja_env.filters["qty"] = qty
 
 with app.app_context():
     seed_defaults()
@@ -104,21 +129,78 @@ def logout():
     return redirect(url_for("login"))
 
 
+@app.context_processor
+def inject_layout_context():
+    now = tashkent_now()
+    weekdays = ["Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba", "Yakshanba"]
+    role_names = {"admin": "admin", "manager": "rahbar", "warehouse": "omborchi", "cashier": "kassir", "accountant": "buxgalter", "employee": "xodim"}
+    pending = 0
+    try:
+        if current_user.is_authenticated:
+            pending = CashRequest.query.filter_by(status="PENDING").count()
+    except Exception:
+        pending = 0
+    return {
+        "today_text": now.strftime("%d.%m.%Y"),
+        "weekday_text": weekdays[now.weekday()],
+        "role_label": role_names.get(getattr(current_user, "role", ""), getattr(current_user, "role", "")),
+        "nav_pending_cash": pending,
+    }
+
+
 @app.route("/")
 @login_required
 def dashboard():
     products = Product.query.order_by(Product.name).all()
-    inventory_cost = sum(p.quantity * p.cost_price for p in products)
-    inventory_sale = sum(p.quantity * p.sale_price for p in products)
-    low_stock = [p for p in products if p.quantity <= p.min_quantity]
-    total_revenue = db.session.query(db.func.coalesce(db.func.sum(Revenue.amount), 0)).scalar() or 0
-    total_expense = db.session.query(db.func.coalesce(db.func.sum(Expense.amount), 0)).scalar() or 0
+    inventory_cost = sum(float(p.quantity or 0) * float(p.cost_price or 0) for p in products)
+    inventory_sale = sum(float(p.quantity or 0) * float(p.sale_price or 0) for p in products)
+    low_stock = sorted([p for p in products if p.quantity <= p.min_quantity], key=lambda p: (p.quantity - p.min_quantity))
+    total_revenue = float(db.session.query(db.func.coalesce(db.func.sum(Revenue.amount), 0)).scalar() or 0)
+    total_expense = float(db.session.query(db.func.coalesce(db.func.sum(Expense.amount), 0)).scalar() or 0)
     profit = total_revenue - total_expense
-    recent = StockMovement.query.order_by(StockMovement.created_at.desc()).limit(10).all()
-    pending_cash = CashRequest.query.filter(CashRequest.status.in_(["PENDING", "APPROVED", "PAID"])).count()
-    return render_template("dashboard.html", products=products, inventory_cost=inventory_cost,
-                           inventory_sale=inventory_sale, low_stock=low_stock, total_revenue=total_revenue,
-                           total_expense=total_expense, profit=profit, recent=recent, pending_cash=pending_cash)
+    recent = StockMovement.query.filter_by(cancelled=False).order_by(StockMovement.created_at.desc()).limit(10).all()
+
+    day_start, day_end = tashkent_day_utc_range()
+    today_rows = StockMovement.query.filter(StockMovement.cancelled == False, StockMovement.created_at >= day_start, StockMovement.created_at < day_end).all()
+    today_in = [m for m in today_rows if m.movement_type in {"IN", "RETURN"}]
+    today_out = [m for m in today_rows if m.movement_type == "OUT"]
+    today_in_value = sum(float(m.quantity or 0) * float(m.unit_price or 0) for m in today_in)
+    today_out_value = sum(float(m.quantity or 0) * float(m.unit_price or 0) for m in today_out)
+
+    now = tashkent_now()
+    chart_labels, chart_in, chart_out = [], [], []
+    month_names = ["Yan", "Fev", "Mar", "Apr", "May", "Iyn", "Iyl", "Avg", "Sen", "Okt", "Noy", "Dek"]
+    for offset in range(-5, 1):
+        y, mo = shift_month(now.year, now.month, offset)
+        sy, sm = y, mo
+        ey, em = shift_month(y, mo, 1)
+        start_local = datetime(sy, sm, 1, tzinfo=ZoneInfo("Asia/Tashkent"))
+        end_local = datetime(ey, em, 1, tzinfo=ZoneInfo("Asia/Tashkent"))
+        start_utc = start_local.astimezone(timezone.utc).replace(tzinfo=None)
+        end_utc = end_local.astimezone(timezone.utc).replace(tzinfo=None)
+        rows = StockMovement.query.filter(StockMovement.cancelled == False, StockMovement.created_at >= start_utc, StockMovement.created_at < end_utc).all()
+        chart_labels.append(month_names[mo-1])
+        chart_in.append(round(sum(float(m.quantity or 0)*float(m.unit_price or 0) for m in rows if m.movement_type in {"IN","RETURN"}), 2))
+        chart_out.append(round(sum(float(m.quantity or 0)*float(m.unit_price or 0) for m in rows if m.movement_type == "OUT"), 2))
+
+    incoming_rows = StockMovement.query.filter(StockMovement.cancelled == False, StockMovement.movement_type.in_(["IN", "RETURN"])).all()
+    incoming_map = {}
+    for m in incoming_rows:
+        d = incoming_map.setdefault(m.product_id, {"name": m.product.name, "unit": m.product.unit, "quantity": 0.0})
+        d["quantity"] += float(m.quantity or 0)
+    top_raw = sorted(incoming_map.values(), key=lambda x: x["quantity"], reverse=True)[:5]
+    top_max = max([x["quantity"] for x in top_raw], default=1)
+    top_incoming = [{**x, "percent": max(8, round(x["quantity"] / top_max * 100))} for x in top_raw]
+
+    cash_preview = CashRequest.query.order_by(CashRequest.created_at.desc()).limit(3).all()
+    active_employees = User.query.filter_by(active=True).count()
+    total_quantity = sum(float(p.quantity or 0) for p in products)
+    return render_template("dashboard.html", products=products, inventory_cost=inventory_cost, inventory_sale=inventory_sale,
+                           low_stock=low_stock, total_revenue=total_revenue, total_expense=total_expense, profit=profit,
+                           recent=recent, today_in_value=today_in_value, today_out_value=today_out_value,
+                           today_in_count=len(today_in), today_out_count=len(today_out), active_employees=active_employees,
+                           chart_labels=chart_labels, chart_in=chart_in, chart_out=chart_out, top_incoming=top_incoming,
+                           cash_preview=cash_preview, total_product_types=len(products), total_quantity=total_quantity)
 
 
 @app.route("/products", methods=["GET", "POST"])
@@ -141,7 +223,11 @@ def products():
         db.session.commit()
         flash("Mahsulot qo‘shildi", "success")
         return redirect(url_for("products"))
-    return render_template("products.html", products=Product.query.order_by(Product.name).all())
+    q = (request.args.get("q") or "").strip()
+    query = Product.query
+    if q:
+        query = query.filter(Product.name.ilike(f"%{q}%"))
+    return render_template("products.html", products=query.order_by(Product.name).all(), q=q)
 
 
 @app.route("/movement/<kind>", methods=["GET", "POST"])
@@ -407,6 +493,26 @@ def my_salary():
 def audit_view():
     rows = AuditLog.query.order_by(AuditLog.created_at.desc()).limit(300).all()
     return render_template("audit.html", rows=rows)
+
+
+@app.route("/reports")
+@role_required("admin", "manager")
+def reports():
+    products = Product.query.all()
+    inventory_cost = sum(float(p.quantity or 0) * float(p.cost_price or 0) for p in products)
+    total_revenue = float(db.session.query(db.func.coalesce(db.func.sum(Revenue.amount), 0)).scalar() or 0)
+    total_expense = float(db.session.query(db.func.coalesce(db.func.sum(Expense.amount), 0)).scalar() or 0)
+    low_count = sum(1 for p in products if p.quantity <= p.min_quantity)
+    movement_count = StockMovement.query.filter_by(cancelled=False).count()
+    return render_template("reports.html", total_revenue=total_revenue, total_expense=total_expense,
+                           product_count=len(products), inventory_cost=inventory_cost, low_count=low_count, movement_count=movement_count)
+
+
+@app.route("/settings")
+@role_required("admin", "manager")
+def settings_view():
+    database_kind = "PostgreSQL" if str(app.config.get("SQLALCHEMY_DATABASE_URI", "")).startswith("postgres") else "SQLite"
+    return render_template("settings.html", database_kind=database_kind)
 
 
 @app.cli.command("init-db")
