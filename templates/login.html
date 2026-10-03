@@ -1,0 +1,5 @@
+{% extends 'base.html' %}{% block content %}
+<div class="row justify-content-center"><div class="col-md-5 col-lg-4"><div class="card p-4 text-center">
+<img src="{{ url_for('static', filename='logo.png') }}" class="img-fluid mb-3" alt="logo"><h4>Kirish</h4>
+<form method="post" class="text-start"><label class="form-label">Login</label><input name="username" class="form-control mb-3" required><label class="form-label">Parol</label><input name="password" type="password" class="form-control mb-3" required><button class="btn btn-success w-100">Kirish</button></form>
+</div></div></div>{% endblock %}
