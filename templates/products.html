@@ -1,5 +1,47 @@
-{% extends 'base.html' %}{% block title %}Mahsulotlar — Ombor360°{% endblock %}{% block content %}
+{% extends 'base.html' %}
+{% block title %}Mahsulotlar — Ombor360°{% endblock %}
+{% block content %}
 <h1 class="page-title">Mahsulotlar</h1>
-<div class="modern-card mb-3"><form method="post" class="row g-2 modern-form"><div class="col-md-3"><input name="name" class="form-control" placeholder="Mahsulot nomi" required></div><div class="col-md-2"><input name="category" class="form-control" placeholder="Kategoriya"></div><div class="col-md-1"><input name="unit" class="form-control" placeholder="dona/list"></div><div class="col-md-1"><input name="min_quantity" type="number" step="0.01" class="form-control" placeholder="Min"></div><div class="col-md-2"><input name="cost_price" type="number" step="0.01" class="form-control" placeholder="Kirim narxi"></div><div class="col-md-2"><input name="sale_price" type="number" step="0.01" class="form-control" placeholder="Sotuv narxi"></div><div class="col-md-1"><button class="btn btn-success w-100 h-100"><i class="bi bi-plus-lg"></i></button></div><div class="col-md-3"><input name="sku" class="form-control" placeholder="SKU / QR"></div><div class="col-md-3"><input name="location" class="form-control" placeholder="Ombor / stellaj joyi"></div></form></div>
-<div class="modern-card"><div class="d-flex justify-content-between align-items-center mb-3"><strong>{{ products|length }} ta mahsulot</strong>{% if q %}<span class="small text-secondary">Qidiruv: “{{ q }}”</span>{% endif %}</div><div class="table-responsive"><table class="table table-modern align-middle"><thead><tr><th>Mahsulot</th><th>Kategoriya</th><th>Qoldiq</th><th>Erkin</th><th>Min.</th><th>Kirim narxi</th><th>Sotuv</th><th>Joy</th></tr></thead><tbody>{% for p in products %}<tr><td class="fw-semibold"><span class="product-dot"><i class="bi bi-box-seam"></i></span>{{p.name}}</td><td>{{p.category}}</td><td>{{p.quantity|qty}} {{p.unit}}</td><td>{{p.free_quantity|qty}}</td><td>{{p.min_quantity|qty}}</td><td>{{p.cost_price|money}}</td><td>{{p.sale_price|money}}</td><td>{{p.location or '-'}}</td></tr>{% else %}<tr><td colspan="8"><div class="empty-state">Mahsulot topilmadi.</div></td></tr>{% endfor %}</tbody></table></div></div>
+
+<div class="modern-card mb-3">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+      <div class="fw-bold"><i class="bi bi-upc-scan text-success me-2"></i>Barcode/SKU bilan mahsulot qo‘shish</div>
+      <div class="small text-secondary">Barcode katagini bosib, Winson skaner bilan kodni o‘qisangiz, kod avtomatik yoziladi. Bo‘sh qoldirsangiz Ombor360° o‘zi kod yaratadi.</div>
+    </div>
+  </div>
+  <form method="post" class="row g-2 modern-form">
+    <div class="col-md-3"><input name="name" class="form-control" placeholder="Mahsulot nomi" required></div>
+    <div class="col-md-2"><input name="category" class="form-control" placeholder="Kategoriya"></div>
+    <div class="col-md-1"><input name="unit" class="form-control" placeholder="dona/list"></div>
+    <div class="col-md-1"><input name="min_quantity" type="number" step="0.01" class="form-control" placeholder="Min"></div>
+    <div class="col-md-2"><input name="cost_price" type="number" step="0.01" class="form-control" placeholder="Kirim narxi"></div>
+    <div class="col-md-2"><input name="sale_price" type="number" step="0.01" class="form-control" placeholder="Sotuv narxi"></div>
+    <div class="col-md-1"><button class="btn btn-success w-100 h-100"><i class="bi bi-plus-lg"></i></button></div>
+    <div class="col-md-3"><input name="sku" class="form-control barcode-entry" placeholder="Barcode / SKU — shu yerga skaner qiling"></div>
+    <div class="col-md-3"><input name="location" class="form-control" placeholder="Ombor / stellaj joyi"></div>
+  </form>
+</div>
+
+<div class="modern-card">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div class="d-flex align-items-center gap-2 flex-wrap"><strong>{{ products|length }} ta mahsulot</strong><a class="btn btn-sm btn-outline-dark" href="{{ url_for('labels') }}"><i class="bi bi-printer me-1"></i>A4 etiketkalar</a></div>
+    <form method="get" class="d-flex gap-2 product-search-form">
+      <input name="q" value="{{ q }}" class="form-control" placeholder="Nomi yoki barcode bo‘yicha qidirish...">
+      <button class="btn btn-outline-success"><i class="bi bi-search"></i></button>
+    </form>
+  </div>
+  <div class="table-responsive"><table class="table table-modern align-middle">
+    <thead><tr><th>Mahsulot</th><th>Barcode / SKU</th><th>Kategoriya</th><th>Qoldiq</th><th>Erkin</th><th>Min.</th><th>Kirim narxi</th><th>Sotuv</th><th>Joy</th><th>Etiketka</th></tr></thead>
+    <tbody>
+      {% for p in products %}
+      <tr>
+        <td class="fw-semibold"><span class="product-dot"><i class="bi bi-box-seam"></i></span>{{p.name}}</td>
+        <td><span class="sku-chip"><i class="bi bi-upc me-1"></i>{{p.sku or '-'}}</span></td>
+        <td>{{p.category}}</td><td>{{p.quantity|qty}} {{p.unit}}</td><td>{{p.free_quantity|qty}}</td><td>{{p.min_quantity|qty}}</td><td>{{p.cost_price|money}}</td><td>{{p.sale_price|money}}</td><td>{{p.location or '-'}}</td><td><a class="btn btn-sm btn-outline-success" href="{{ url_for('labels', ids=p.id) }}"><i class="bi bi-printer"></i></a></td>
+      </tr>
+      {% else %}<tr><td colspan="10"><div class="empty-state">Mahsulot topilmadi.</div></td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</div>
 {% endblock %}

@@ -51,3 +51,14 @@ Render GitHub repositoryga ulangan bo‘lsa, GitHubdagi yangi commitdan keyin av
 
 ## Muhim
 SQLite sinov/MVP uchun. Doimiy real ishlatish uchun PostgreSQL tavsiya etiladi, chunki Render Free servisida lokal SQLite fayli doimiy saqlanishiga tayanib bo‘lmaydi.
+
+## Barcode / QR skaner (v3)
+
+Winson WAI-5770D-USB kabi USB HID skanerlar klaviatura sifatida ishlaydi.
+
+1. Mahsulotlar bo‘limida `Barcode / SKU` maydonini bosib, kodni skaner qiling. Bo‘sh qoldirilsa tizim `OMB-000001` ko‘rinishida avtomatik kod beradi.
+2. Kirim yoki Chiqim sahifasida `Barcode / QR skaner` maydonida mahsulot kodini skaner qiling.
+3. Skaner Enter yuborsa, mahsulot avtomatik tanlanadi va fokus `Miqdor` maydoniga o‘tadi.
+4. Mahsulot nomi, barcode yoki kategoriya bo‘yicha qidirish mumkin.
+
+Eslatma: bir xil barcode/SKU ikki mahsulotga biriktirilmaydi.

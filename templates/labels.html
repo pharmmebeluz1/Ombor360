@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% block title %}Etiketkalar — Ombor360°{% endblock %}
+{% block content %}
+<div class="label-toolbar no-print">
+  <div>
+    <h1 class="page-title mb-1">A4 etiketkalar</h1>
+    <div class="text-secondary small">{{ product_count }} ta mahsulot • {{ label_rows|length }} ta etiketka</div>
+  </div>
+  <div class="d-flex flex-wrap gap-2 align-items-end">
+    <form method="get" class="d-flex gap-2 align-items-end">
+      {% if ids_raw %}<input type="hidden" name="ids" value="{{ ids_raw }}">{% endif %}
+      <div>
+        <label class="form-label small mb-1">Har mahsulotdan nusxa</label>
+        <input class="form-control" style="width:100px" type="number" name="copies" min="1" max="50" value="{{ copies }}">
+      </div>
+      <button class="btn btn-outline-secondary">Yangilash</button>
+    </form>
+    <button class="btn btn-success" onclick="window.print()"><i class="bi bi-printer me-1"></i> Chop etish</button>
+    <a class="btn btn-outline-dark" href="{{ url_for('products') }}">Mahsulotlarga qaytish</a>
+  </div>
+</div>
+
+<div class="a4-sheet">
+  {% for row in label_rows %}
+  <div class="print-label">
+    <div class="label-brand">OMBOR360°</div>
+    <div class="label-name">{{ row.product.name }}</div>
+    {% if row.barcode_uri %}
+      <img class="barcode-img" src="{{ row.barcode_uri }}" alt="{{ row.code }}">
+    {% else %}
+      <div class="barcode-fallback">{{ row.code }}</div>
+    {% endif %}
+    <div class="label-meta">
+      <span><b>Kod:</b> {{ row.code }}</span>
+      <span><b>Joy:</b> {{ row.product.location or '-' }}</span>
+    </div>
+    <div class="label-meta">
+      <span><b>Birlik:</b> {{ row.product.unit }}</span>
+      <span><b>Qoldiq:</b> {{ row.product.quantity|qty }}</span>
+    </div>
+  </div>
+  {% else %}
+  <div class="modern-card no-print">Etiketka chiqarish uchun mahsulot topilmadi.</div>
+  {% endfor %}
+</div>
+
+<style>
+.label-toolbar{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.a4-sheet{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4mm;background:#fff;padding:6mm;border-radius:16px}
+.print-label{height:35mm;border:1px solid #222;border-radius:2mm;padding:2.2mm 2.5mm;overflow:hidden;background:#fff;color:#000;display:flex;flex-direction:column;justify-content:center}
+.label-brand{font-size:9px;font-weight:900;letter-spacing:.8px;color:#087a49}
+.label-name{font-size:13px;line-height:1.1;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:1mm 0 .5mm}
+.barcode-img{display:block;width:100%;height:16mm;object-fit:contain;object-position:center;margin:0 auto}
+.barcode-fallback{font-family:monospace;font-size:14px;font-weight:700;text-align:center;padding:5mm 0;border:1px dashed #aaa}
+.label-meta{display:flex;justify-content:space-between;gap:4px;font-size:7.5px;line-height:1.1;margin-top:.4mm}
+@page{size:A4 portrait;margin:8mm}
+@media print{
+  body{background:#fff!important}
+  .sidebar,.topbar,.no-print,.flash-wrap{display:none!important}
+  .main-shell,.main-content,.content-wrap{margin:0!important;padding:0!important;width:100%!important;max-width:none!important}
+  .a4-sheet{display:grid!important;grid-template-columns:repeat(3,1fr)!important;gap:4mm!important;padding:0!important;border-radius:0!important}
+  .print-label{break-inside:avoid;page-break-inside:avoid;height:35mm!important;box-shadow:none!important}
+}
+@media(max-width:900px){.a4-sheet{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.a4-sheet{grid-template-columns:1fr}.print-label{height:38mm}}
+</style>
+{% endblock %}

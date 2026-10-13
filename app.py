@@ -1,4 +1,6 @@
 import os
+import base64
+from io import BytesIO
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 from zoneinfo import ZoneInfo
@@ -7,6 +9,8 @@ from dotenv import load_dotenv
 from flask import Flask, abort, flash, redirect, render_template, request, url_for
 from flask_login import LoginManager, current_user, login_required, login_user, logout_user
 from werkzeug.security import check_password_hash, generate_password_hash
+from barcode import Code128
+from barcode.writer import SVGWriter
 
 from models import AuditLog, CashRequest, Expense, PayrollPayment, Product, Revenue, StockMovement, User, db
 
@@ -63,6 +67,29 @@ def qty(v):
     value = float(v or 0)
     return f"{value:.2f}".rstrip("0").rstrip(".")
 
+
+
+
+def barcode_svg_data_uri(code):
+    """Code128 barcode as an inline SVG data URI for printing."""
+    try:
+        buf = BytesIO()
+        Code128(str(code), writer=SVGWriter()).write(
+            buf,
+            options={
+                "module_width": 0.30,
+                "module_height": 11.0,
+                "quiet_zone": 1.5,
+                "font_size": 7,
+                "text_distance": 2.0,
+                "write_text": True,
+                "background": "white",
+                "foreground": "black",
+            },
+        )
+        return "data:image/svg+xml;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
+    except Exception:
+        return None
 
 def tashkent_now():
     return datetime.now(ZoneInfo("Asia/Tashkent"))
@@ -207,11 +234,15 @@ def dashboard():
 @role_required("admin", "manager", "warehouse")
 def products():
     if request.method == "POST":
+        raw_sku = (request.form.get("sku") or "").strip() or None
+        if raw_sku and Product.query.filter_by(sku=raw_sku).first():
+            flash("Bu barcode/SKU oldin boshqa mahsulotga biriktirilgan", "danger")
+            return redirect(url_for("products"))
         p = Product(
             name=request.form["name"].strip(),
             category=request.form.get("category", "Boshqa").strip(),
             unit=request.form.get("unit", "dona").strip(),
-            sku=request.form.get("sku") or None,
+            sku=raw_sku,
             min_quantity=float(request.form.get("min_quantity") or 0),
             cost_price=float(request.form.get("cost_price") or 0),
             sale_price=float(request.form.get("sale_price") or 0),
@@ -219,15 +250,56 @@ def products():
         )
         db.session.add(p)
         db.session.flush()
-        audit("CREATE", "Product", p.id, p.name)
+        if not p.sku:
+            p.sku = f"OMB-{p.id:06d}"
+        audit("CREATE", "Product", p.id, f"{p.name} | barcode: {p.sku}")
         db.session.commit()
         flash("Mahsulot qo‘shildi", "success")
         return redirect(url_for("products"))
     q = (request.args.get("q") or "").strip()
     query = Product.query
     if q:
-        query = query.filter(Product.name.ilike(f"%{q}%"))
+        like = f"%{q}%"
+        query = query.filter(db.or_(Product.name.ilike(like), Product.sku.ilike(like), Product.category.ilike(like)))
     return render_template("products.html", products=query.order_by(Product.name).all(), q=q)
+
+
+@app.route("/labels")
+@role_required("admin", "manager", "warehouse")
+def labels():
+    ids_raw = (request.args.get("ids") or "").strip()
+    copies_raw = (request.args.get("copies") or "1").strip()
+    try:
+        copies = max(1, min(int(copies_raw), 50))
+    except ValueError:
+        copies = 1
+
+    query = Product.query
+    selected_ids = []
+    if ids_raw:
+        for part in ids_raw.split(","):
+            try:
+                selected_ids.append(int(part.strip()))
+            except (TypeError, ValueError):
+                pass
+        if selected_ids:
+            query = query.filter(Product.id.in_(selected_ids))
+
+    products = query.order_by(Product.name).all()
+    label_rows = []
+    for product in products:
+        code = product.sku or f"OMB-{product.id:06d}"
+        barcode_uri = barcode_svg_data_uri(code)
+        for _ in range(copies):
+            label_rows.append({"product": product, "code": code, "barcode_uri": barcode_uri})
+
+    return render_template(
+        "labels.html",
+        label_rows=label_rows,
+        ids_raw=ids_raw,
+        copies=copies,
+        product_count=len(products),
+    )
 
 
 @app.route("/movement/<kind>", methods=["GET", "POST"])
