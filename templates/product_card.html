@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block title %}{{ product.name }} — Ombor360°{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+  <div><h1 class="page-title mb-1">{{ product.name }}</h1><div class="text-secondary"><span class="sku-chip">{{ product.sku }}</span> • {{ product.category }}</div></div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a class="btn btn-outline-success" href="{{ url_for('labels', ids=product.id, label_type='qr') }}"><i class="bi bi-printer me-1"></i>QR chiqarish</a>
+    {% if current_user.role in ['admin','manager','warehouse'] %}<a class="btn btn-success" href="{{ url_for('movement', kind='IN', product_id=product.id) }}"><i class="bi bi-arrow-down-square me-1"></i>Kirim</a><a class="btn btn-outline-danger" href="{{ url_for('movement', kind='OUT', product_id=product.id) }}"><i class="bi bi-arrow-up-square me-1"></i>Chiqim</a>{% endif %}
+  </div>
+</div>
+<div class="row g-3">
+  <div class="col-lg-4">
+    <div class="modern-card text-center h-100">
+      {% if qr_uri %}<img src="{{ qr_uri }}" alt="{{ product.sku }}" style="width:190px;height:190px;max-width:100%">{% endif %}
+      <div class="fw-bold fs-5">{{ product.sku }}</div>
+      <div class="text-secondary small">Skaner o‘qiydigan mahsulot kodi</div>
+    </div>
+  </div>
+  <div class="col-lg-8">
+    <div class="row g-3">
+      <div class="col-sm-6"><div class="modern-card h-100"><div class="text-secondary small">Ombordagi qoldiq</div><div class="display-6 fw-bold text-success">{{ product.quantity|qty }} <span class="fs-5">{{ product.unit }}</span></div><div class="small">Erkin: {{ product.free_quantity|qty }} {{ product.unit }}</div></div></div>
+      <div class="col-sm-6"><div class="modern-card h-100"><div class="text-secondary small">Og‘irligi</div><div class="display-6 fw-bold">{% if product.weight_kg %}{{ product.weight_kg|qty }} <span class="fs-5">kg</span>{% else %}-{% endif %}</div></div></div>
+      <div class="col-sm-6"><div class="modern-card h-100"><div class="text-secondary small">Joylashuvi</div><div class="fw-bold fs-4">{{ product.warehouse or 'Ombor ko‘rsatilmagan' }}</div><div class="mt-2"><span class="badge text-bg-light border me-1">Qator: {{ product.row_code or '-' }}</span><span class="badge text-bg-light border">Polka: {{ product.shelf_code or '-' }}</span></div></div></div>
+      <div class="col-sm-6"><div class="modern-card h-100"><div class="text-secondary small">Yaroqlilik muddati</div>{% if product.expiry_date %}<div class="fw-bold fs-4">{{ product.expiry_date.strftime('%d.%m.%Y') }}</div>{% if expiry_status=='expired' %}<span class="badge text-bg-danger">Muddati o‘tgan • {{ -days_left }} kun</span>{% elif expiry_status=='danger' %}<span class="badge text-bg-danger">{{ days_left }} kun qoldi</span>{% elif expiry_status=='warning' %}<span class="badge text-bg-warning">{{ days_left }} kun qoldi</span>{% else %}<span class="badge text-bg-success">{{ days_left }} kun qoldi</span>{% endif %}{% else %}<div class="fw-bold fs-4">Belgilanmagan</div>{% endif %}</div></div>
+      <div class="col-12"><div class="modern-card"><div class="row g-3"><div class="col-md-4"><div class="text-secondary small">Kirim narxi</div><div class="fw-bold fs-5">{{ product.cost_price|money }} so‘m</div></div><div class="col-md-4"><div class="text-secondary small">Sotuv narxi</div><div class="fw-bold fs-5">{{ product.sale_price|money }} so‘m</div></div><div class="col-md-4"><div class="text-secondary small">Ombordagi qiymat</div><div class="fw-bold fs-5">{{ (product.quantity * product.cost_price)|money }} so‘m</div></div></div></div></div>
+    </div>
+  </div>
+</div>
+<div class="mt-3"><a class="btn btn-outline-secondary" href="{{ url_for('scan_product') }}"><i class="bi bi-upc-scan me-1"></i>Keyingi mahsulotni skaner qilish</a></div>
+{% endblock %}

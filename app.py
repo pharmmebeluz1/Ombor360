@@ -1,7 +1,7 @@
 import os
 import base64
 from io import BytesIO
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from functools import wraps
 from zoneinfo import ZoneInfo
 
@@ -11,6 +11,9 @@ from flask_login import LoginManager, current_user, login_required, login_user, 
 from werkzeug.security import check_password_hash, generate_password_hash
 from barcode import Code128
 from barcode.writer import SVGWriter
+import qrcode
+import qrcode.image.svg
+from sqlalchemy import inspect, text
 
 from models import AuditLog, CashRequest, Expense, PayrollPayment, Product, Revenue, StockMovement, User, db
 
@@ -91,6 +94,52 @@ def barcode_svg_data_uri(code):
     except Exception:
         return None
 
+
+def qr_svg_data_uri(code):
+    """QR code as an inline SVG data URI. QR ichida faqat mahsulotning SKU kodi saqlanadi."""
+    try:
+        qr = qrcode.QRCode(version=None, box_size=8, border=2)
+        qr.add_data(str(code))
+        qr.make(fit=True)
+        image = qr.make_image(image_factory=qrcode.image.svg.SvgPathImage)
+        buf = BytesIO()
+        image.save(buf)
+        return "data:image/svg+xml;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
+    except Exception:
+        return None
+
+
+def parse_date(value):
+    value = (value or "").strip()
+    if not value:
+        return None
+    try:
+        return datetime.strptime(value, "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
+def ensure_product_columns():
+    """Eski Ombor360 bazasiga v5 ustunlarini xavfsiz qo‘shadi."""
+    inspector = inspect(db.engine)
+    if "product" not in inspector.get_table_names():
+        return
+    existing = {c["name"] for c in inspector.get_columns("product")}
+    additions = {
+        "weight_kg": "FLOAT DEFAULT 0",
+        "warehouse": "VARCHAR(120)",
+        "row_code": "VARCHAR(40)",
+        "shelf_code": "VARCHAR(40)",
+        "expiry_date": "DATE",
+    }
+    changed = False
+    for name, sql_type in additions.items():
+        if name not in existing:
+            db.session.execute(text(f"ALTER TABLE product ADD COLUMN {name} {sql_type}"))
+            changed = True
+    if changed:
+        db.session.commit()
+
 def tashkent_now():
     return datetime.now(ZoneInfo("Asia/Tashkent"))
 
@@ -121,6 +170,7 @@ def month_range(month_key):
 
 def seed_defaults():
     db.create_all()
+    ensure_product_columns()
     if not User.query.filter_by(username="admin").first():
         db.session.add_all([
             User(full_name="Rahbar", username="admin", password_hash=generate_password_hash("admin123"), role="admin"),
@@ -238,6 +288,10 @@ def products():
         if raw_sku and Product.query.filter_by(sku=raw_sku).first():
             flash("Bu barcode/SKU oldin boshqa mahsulotga biriktirilgan", "danger")
             return redirect(url_for("products"))
+        warehouse = (request.form.get("warehouse") or "").strip() or None
+        row_code = (request.form.get("row_code") or "").strip() or None
+        shelf_code = (request.form.get("shelf_code") or "").strip() or None
+        location_parts = [x for x in [warehouse, f"Qator {row_code}" if row_code else None, f"Polka {shelf_code}" if shelf_code else None] if x]
         p = Product(
             name=request.form["name"].strip(),
             category=request.form.get("category", "Boshqa").strip(),
@@ -246,7 +300,12 @@ def products():
             min_quantity=float(request.form.get("min_quantity") or 0),
             cost_price=float(request.form.get("cost_price") or 0),
             sale_price=float(request.form.get("sale_price") or 0),
-            location=request.form.get("location") or None,
+            weight_kg=float(request.form.get("weight_kg") or 0),
+            warehouse=warehouse,
+            row_code=row_code,
+            shelf_code=shelf_code,
+            expiry_date=parse_date(request.form.get("expiry_date")),
+            location=" → ".join(location_parts) or ((request.form.get("location") or "").strip() or None),
         )
         db.session.add(p)
         db.session.flush()
@@ -254,13 +313,16 @@ def products():
             p.sku = f"OMB-{p.id:06d}"
         audit("CREATE", "Product", p.id, f"{p.name} | barcode: {p.sku}")
         db.session.commit()
-        flash("Mahsulot qo‘shildi", "success")
-        return redirect(url_for("products"))
+        flash("Mahsulot qo‘shildi. QR-kod avtomatik yaratildi.", "success")
+        return redirect(url_for("labels", ids=p.id, label_type="qr", created=1))
     q = (request.args.get("q") or "").strip()
     query = Product.query
     if q:
         like = f"%{q}%"
-        query = query.filter(db.or_(Product.name.ilike(like), Product.sku.ilike(like), Product.category.ilike(like)))
+        query = query.filter(db.or_(
+            Product.name.ilike(like), Product.sku.ilike(like), Product.category.ilike(like),
+            Product.warehouse.ilike(like), Product.row_code.ilike(like), Product.shelf_code.ilike(like)
+        ))
     return render_template("products.html", products=query.order_by(Product.name).all(), q=q)
 
 
@@ -285,20 +347,61 @@ def labels():
         if selected_ids:
             query = query.filter(Product.id.in_(selected_ids))
 
+    label_type = (request.args.get("label_type") or "qr").lower()
+    if label_type not in {"qr", "barcode"}:
+        label_type = "qr"
     products = query.order_by(Product.name).all()
     label_rows = []
     for product in products:
         code = product.sku or f"OMB-{product.id:06d}"
         barcode_uri = barcode_svg_data_uri(code)
+        qr_uri = qr_svg_data_uri(code)
         for _ in range(copies):
-            label_rows.append({"product": product, "code": code, "barcode_uri": barcode_uri})
+            label_rows.append({"product": product, "code": code, "barcode_uri": barcode_uri, "qr_uri": qr_uri})
 
     return render_template(
         "labels.html",
         label_rows=label_rows,
         ids_raw=ids_raw,
         copies=copies,
+        label_type=label_type,
+        created=request.args.get("created") == "1",
         product_count=len(products),
+    )
+
+
+@app.route("/scan", methods=["GET", "POST"])
+@login_required
+def scan_product():
+    code = (request.values.get("code") or "").strip()
+    if code:
+        product = Product.query.filter(db.func.lower(Product.sku) == code.lower()).first()
+        if product:
+            return redirect(url_for("product_card", product_id=product.id))
+        flash(f"{code} kodi bilan mahsulot topilmadi", "danger")
+        return redirect(url_for("scan_product"))
+    return render_template("scan.html")
+
+
+@app.route("/product/<int:product_id>")
+@login_required
+def product_card(product_id):
+    product = db.get_or_404(Product, product_id)
+    days_left = None
+    expiry_status = None
+    if product.expiry_date:
+        days_left = (product.expiry_date - tashkent_now().date()).days
+        if days_left < 0:
+            expiry_status = "expired"
+        elif days_left <= 7:
+            expiry_status = "danger"
+        elif days_left <= 30:
+            expiry_status = "warning"
+        else:
+            expiry_status = "ok"
+    return render_template(
+        "product_card.html", product=product, days_left=days_left, expiry_status=expiry_status,
+        qr_uri=qr_svg_data_uri(product.sku or f"OMB-{product.id:06d}")
     )
 
 
@@ -348,7 +451,8 @@ def movement(kind):
         db.session.commit()
         flash("Operatsiya saqlandi", "success")
         return redirect(url_for("movements"))
-    return render_template("movement_form.html", kind=kind, products=products)
+    preselected_id = request.args.get("product_id", type=int)
+    return render_template("movement_form.html", kind=kind, products=products, preselected_id=preselected_id)
 
 
 @app.route("/movements")

@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title %}Skaner — Ombor360°{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <div><h1 class="page-title mb-1">Skaner rejimi</h1><div class="text-secondary">Bluetooth yoki USB skaner bilan QR/barcode ni uring.</div></div>
+  <a class="btn btn-outline-dark" href="{{ url_for('products') }}"><i class="bi bi-box-seam me-1"></i>Mahsulotlar</a>
+</div>
+<div class="modern-card" style="max-width:760px">
+  <div class="text-center py-4">
+    <div style="font-size:64px;color:#0c8b5f"><i class="bi bi-upc-scan"></i></div>
+    <h3 class="fw-bold">QR yoki barcode ni skaner qiling</h3>
+    <p class="text-secondary">Mahsulot topilgach nomi, qoldig‘i, og‘irligi, qator/polkasi va yaroqlilik muddati chiqadi.</p>
+    <form method="post" class="mx-auto" style="max-width:520px">
+      <input id="scanCode" name="code" class="form-control form-control-lg text-center" placeholder="Skaner shu yerga kod yozadi..." autocomplete="off" autofocus required>
+      <button class="btn btn-success btn-lg w-100 mt-3"><i class="bi bi-search me-1"></i>Mahsulotni ochish</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>const s=document.getElementById('scanCode'); if(s){s.focus();}</script>
+{% endblock %}

@@ -22,7 +22,7 @@
       <label class="form-label">Mahsulot</label>
       <select name="product_id" id="productSelect" class="form-select" required>
         {% for p in products %}
-        <option value="{{p.id}}" data-sku="{{ p.sku or '' }}" data-unit="{{p.unit}}" data-qty="{{p.quantity|qty}}" data-cost="{{p.cost_price}}" data-sale="{{p.sale_price}}">
+        <option value="{{p.id}}" {% if preselected_id==p.id %}selected{% endif %} data-sku="{{ p.sku or '' }}" data-unit="{{p.unit}}" data-qty="{{p.quantity|qty}}" data-cost="{{p.cost_price}}" data-sale="{{p.sale_price}}">
           {{p.name}} — {{p.quantity|qty}} {{p.unit}}{% if p.sku %} — {{p.sku}}{% endif %}
         </option>
         {% endfor %}

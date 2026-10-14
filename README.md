@@ -62,3 +62,26 @@ Winson WAI-5770D-USB kabi USB HID skanerlar klaviatura sifatida ishlaydi.
 4. Mahsulot nomi, barcode yoki kategoriya bo‘yicha qidirish mumkin.
 
 Eslatma: bir xil barcode/SKU ikki mahsulotga biriktirilmaydi.
+
+## v5 — Avtomatik QR va joylashuv
+
+Bu versiyada mahsulot qo‘shishda quyidagilar kiritiladi:
+- mahsulot nomi va kategoriya;
+- birlik va og‘irlik (kg);
+- ombor, qator va polka;
+- yaroqlilik muddati;
+- minimal qoldiq, kirim va sotuv narxi.
+
+`Saqlash` bosilganda mahsulotga `OMB-000001` ko‘rinishida yagona kod yaratiladi (agar Barcode/SKU qo‘lda kiritilmagan bo‘lsa) va QR etiketka avtomatik tayyorlanadi.
+
+### Skaner rejimi
+`Skaner` menyusiga kiring va Bluetooth/USB skaner bilan QR yoki barcode ni o‘qing. Mahsulot kartasida:
+- nomi;
+- qoldiq;
+- og‘irligi;
+- qaysi ombor/qator/polkada turgani;
+- yaroqlilik muddati va qancha kun qolgani;
+- kirim/sotuv narxi ko‘rinadi.
+
+### A4 printer
+`Mahsulotlar → A4 QR etiketkalar` orqali oddiy printerdan QR etiketkalar chiqarish mumkin. Keyin termal printerga o‘tilganda mahsulot kodlarini o‘zgartirish shart emas.

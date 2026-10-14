@@ -32,6 +32,11 @@ class Product(db.Model):
     cost_price = db.Column(db.Float, nullable=False, default=0)
     sale_price = db.Column(db.Float, nullable=False, default=0)
     location = db.Column(db.String(120), nullable=True)
+    weight_kg = db.Column(db.Float, nullable=False, default=0)
+    warehouse = db.Column(db.String(120), nullable=True)
+    row_code = db.Column(db.String(40), nullable=True)
+    shelf_code = db.Column(db.String(40), nullable=True)
+    expiry_date = db.Column(db.Date, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     @property

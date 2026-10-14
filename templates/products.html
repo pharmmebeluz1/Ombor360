@@ -6,41 +6,57 @@
 <div class="modern-card mb-3">
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <div>
-      <div class="fw-bold"><i class="bi bi-upc-scan text-success me-2"></i>Barcode/SKU bilan mahsulot qo‘shish</div>
-      <div class="small text-secondary">Barcode katagini bosib, Winson skaner bilan kodni o‘qisangiz, kod avtomatik yoziladi. Bo‘sh qoldirsangiz Ombor360° o‘zi kod yaratadi.</div>
+      <div class="fw-bold"><i class="bi bi-qr-code text-success me-2"></i>Mahsulot qo‘shing — QR avtomatik yaratiladi</div>
+      <div class="small text-secondary">Nomi, og‘irligi, ombori, qatori va polkasini kiriting. Saqlagandan keyin Ombor360° QR etiketkani avtomatik tayyorlaydi.</div>
     </div>
+    <a href="{{ url_for('scan_product') }}" class="btn btn-outline-success"><i class="bi bi-upc-scan me-1"></i>Skaner rejimi</a>
   </div>
   <form method="post" class="row g-2 modern-form">
-    <div class="col-md-3"><input name="name" class="form-control" placeholder="Mahsulot nomi" required></div>
-    <div class="col-md-2"><input name="category" class="form-control" placeholder="Kategoriya"></div>
-    <div class="col-md-1"><input name="unit" class="form-control" placeholder="dona/list"></div>
-    <div class="col-md-1"><input name="min_quantity" type="number" step="0.01" class="form-control" placeholder="Min"></div>
-    <div class="col-md-2"><input name="cost_price" type="number" step="0.01" class="form-control" placeholder="Kirim narxi"></div>
-    <div class="col-md-2"><input name="sale_price" type="number" step="0.01" class="form-control" placeholder="Sotuv narxi"></div>
-    <div class="col-md-1"><button class="btn btn-success w-100 h-100"><i class="bi bi-plus-lg"></i></button></div>
-    <div class="col-md-3"><input name="sku" class="form-control barcode-entry" placeholder="Barcode / SKU — shu yerga skaner qiling"></div>
-    <div class="col-md-3"><input name="location" class="form-control" placeholder="Ombor / stellaj joyi"></div>
+    <div class="col-md-3"><label class="form-label small">Mahsulot nomi</label><input name="name" class="form-control" placeholder="Masalan: Shakar" required></div>
+    <div class="col-md-2"><label class="form-label small">Kategoriya</label><input name="category" class="form-control" placeholder="Oziq-ovqat"></div>
+    <div class="col-md-1"><label class="form-label small">Birlik</label><input name="unit" class="form-control" placeholder="dona/kg"></div>
+    <div class="col-md-2"><label class="form-label small">Og‘irligi (kg)</label><input name="weight_kg" type="number" step="0.001" min="0" class="form-control" placeholder="25"></div>
+    <div class="col-md-2"><label class="form-label small">Minimal qoldiq</label><input name="min_quantity" type="number" step="0.01" class="form-control" placeholder="5"></div>
+    <div class="col-md-2"><label class="form-label small">Yaroqlilik muddati</label><input name="expiry_date" type="date" class="form-control"></div>
+
+    <div class="col-md-3"><label class="form-label small">Ombor</label><input name="warehouse" class="form-control" placeholder="Ombor-1"></div>
+    <div class="col-md-2"><label class="form-label small">Qator</label><input name="row_code" class="form-control" placeholder="B"></div>
+    <div class="col-md-2"><label class="form-label small">Polka</label><input name="shelf_code" class="form-control" placeholder="4"></div>
+    <div class="col-md-2"><label class="form-label small">Kirim narxi</label><input name="cost_price" type="number" step="0.01" class="form-control" placeholder="0"></div>
+    <div class="col-md-2"><label class="form-label small">Sotuv narxi</label><input name="sale_price" type="number" step="0.01" class="form-control" placeholder="0"></div>
+    <div class="col-md-1 d-grid"><label class="form-label small">&nbsp;</label><button class="btn btn-success" title="Saqlash va QR yaratish"><i class="bi bi-qr-code"></i></button></div>
+
+    <div class="col-md-5"><label class="form-label small">Barcode / SKU (ixtiyoriy)</label><input name="sku" class="form-control barcode-entry" placeholder="Bo‘sh qoldirsangiz OMB-000001 yaratiladi"></div>
+    <div class="col-md-7"><label class="form-label small">Qo‘shimcha joy izohi (ixtiyoriy)</label><input name="location" class="form-control" placeholder="Masalan: kirishdan chap tomon"></div>
   </form>
 </div>
 
 <div class="modern-card">
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-    <div class="d-flex align-items-center gap-2 flex-wrap"><strong>{{ products|length }} ta mahsulot</strong><a class="btn btn-sm btn-outline-dark" href="{{ url_for('labels') }}"><i class="bi bi-printer me-1"></i>A4 etiketkalar</a></div>
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <strong>{{ products|length }} ta mahsulot</strong>
+      <a class="btn btn-sm btn-outline-dark" href="{{ url_for('labels', label_type='qr') }}"><i class="bi bi-qr-code me-1"></i>A4 QR etiketkalar</a>
+      <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('labels', label_type='barcode') }}"><i class="bi bi-upc me-1"></i>Barcode etiketkalar</a>
+    </div>
     <form method="get" class="d-flex gap-2 product-search-form">
-      <input name="q" value="{{ q }}" class="form-control" placeholder="Nomi yoki barcode bo‘yicha qidirish...">
+      <input name="q" value="{{ q }}" class="form-control" placeholder="Nomi, kod, qator yoki polka...">
       <button class="btn btn-outline-success"><i class="bi bi-search"></i></button>
     </form>
   </div>
   <div class="table-responsive"><table class="table table-modern align-middle">
-    <thead><tr><th>Mahsulot</th><th>Barcode / SKU</th><th>Kategoriya</th><th>Qoldiq</th><th>Erkin</th><th>Min.</th><th>Kirim narxi</th><th>Sotuv</th><th>Joy</th><th>Etiketka</th></tr></thead>
+    <thead><tr><th>Mahsulot</th><th>Kod</th><th>Og‘irlik</th><th>Qoldiq</th><th>Ombor</th><th>Qator</th><th>Polka</th><th>Muddat</th><th>QR</th></tr></thead>
     <tbody>
       {% for p in products %}
       <tr>
-        <td class="fw-semibold"><span class="product-dot"><i class="bi bi-box-seam"></i></span>{{p.name}}</td>
+        <td class="fw-semibold"><a class="text-decoration-none text-dark" href="{{ url_for('product_card', product_id=p.id) }}"><span class="product-dot"><i class="bi bi-box-seam"></i></span>{{p.name}}</a><div class="small text-secondary">{{p.category}}</div></td>
         <td><span class="sku-chip"><i class="bi bi-upc me-1"></i>{{p.sku or '-'}}</span></td>
-        <td>{{p.category}}</td><td>{{p.quantity|qty}} {{p.unit}}</td><td>{{p.free_quantity|qty}}</td><td>{{p.min_quantity|qty}}</td><td>{{p.cost_price|money}}</td><td>{{p.sale_price|money}}</td><td>{{p.location or '-'}}</td><td><a class="btn btn-sm btn-outline-success" href="{{ url_for('labels', ids=p.id) }}"><i class="bi bi-printer"></i></a></td>
+        <td>{% if p.weight_kg %}{{p.weight_kg|qty}} kg{% else %}-{% endif %}</td>
+        <td><strong>{{p.quantity|qty}}</strong> {{p.unit}}{% if p.quantity <= p.min_quantity %}<span class="badge text-bg-danger ms-1">Kam</span>{% endif %}</td>
+        <td>{{p.warehouse or '-'}}</td><td>{{p.row_code or '-'}}</td><td>{{p.shelf_code or '-'}}</td>
+        <td>{% if p.expiry_date %}{{p.expiry_date.strftime('%d.%m.%Y')}}{% else %}-{% endif %}</td>
+        <td><a class="btn btn-sm btn-outline-success" href="{{ url_for('labels', ids=p.id, label_type='qr') }}"><i class="bi bi-qr-code"></i></a></td>
       </tr>
-      {% else %}<tr><td colspan="10"><div class="empty-state">Mahsulot topilmadi.</div></td></tr>{% endfor %}
+      {% else %}<tr><td colspan="9"><div class="empty-state">Mahsulot topilmadi.</div></td></tr>{% endfor %}
     </tbody>
   </table></div>
 </div>
