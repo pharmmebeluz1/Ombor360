@@ -12,8 +12,25 @@
     <a href="{{ url_for('scan_product') }}" class="btn btn-outline-success"><i class="bi bi-upc-scan me-1"></i>Skaner rejimi</a>
   </div>
   <form method="post" class="row g-2 modern-form">
-    <div class="col-md-3"><label class="form-label small">Mahsulot nomi</label><input name="name" class="form-control" placeholder="Masalan: Shakar" required></div>
-    <div class="col-md-2"><label class="form-label small">Kategoriya</label><input name="category" class="form-control" placeholder="Oziq-ovqat"></div>
+    <div class="col-md-2">
+      <label class="form-label small">Kategoriya</label>
+      <select name="category" id="categorySelect" class="form-select" required>
+        <option value="" selected disabled>Kategoriya tanlang</option>
+        <option value="Oziq-ovqat">Oziq-ovqat</option>
+        <option value="Xomashyo">Xomashyo</option>
+        <option value="Furnitura">Furnitura</option>
+        <option value="MDF/LMDF">MDF / LMDF</option>
+        <option value="Qadoqlash">Qadoqlash</option>
+        <option value="Boshqa">Boshqa</option>
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small">Mahsulot nomi</label>
+      <select name="name" id="productNameSelect" class="form-select" disabled required>
+        <option value="" selected disabled>Avval kategoriyani tanlang</option>
+      </select>
+      <input name="name" id="productNameInput" class="form-control d-none" placeholder="Mahsulot nomini yozing" autocomplete="off" disabled required>
+    </div>
     <div class="col-md-1"><label class="form-label small">Birlik</label><input name="unit" class="form-control" placeholder="dona/kg"></div>
     <div class="col-md-2"><label class="form-label small">Og‘irligi (kg)</label><input name="weight_kg" type="number" step="0.001" min="0" class="form-control" placeholder="25"></div>
     <div class="col-md-2"><label class="form-label small">Minimal qoldiq</label><input name="min_quantity" type="number" step="0.01" class="form-control" placeholder="5"></div>
@@ -60,4 +77,55 @@
     </tbody>
   </table></div>
 </div>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const categorySelect = document.getElementById('categorySelect');
+  const productSelect = document.getElementById('productNameSelect');
+  const productInput = document.getElementById('productNameInput');
+
+  const foodProducts = [
+    'Shakar', 'Un', 'Sariyog‘', 'Makaron', 'Guruch', 'Tuz',
+    'O‘simlik yog‘i', 'Choy', 'Qahva', 'Sut', 'Tuxum',
+    'Pechenye', 'Konserva', 'Suv', 'Sharbat'
+  ];
+
+  function showFoodProducts() {
+    productInput.classList.add('d-none');
+    productInput.disabled = true;
+    productInput.value = '';
+
+    productSelect.innerHTML = '<option value="" selected disabled>Mahsulot nomini tanlang</option>';
+    foodProducts.forEach(function (name) {
+      const option = document.createElement('option');
+      option.value = name;
+      option.textContent = name;
+      productSelect.appendChild(option);
+    });
+    productSelect.disabled = false;
+    productSelect.classList.remove('d-none');
+    productSelect.focus();
+  }
+
+  function showManualProductInput() {
+    productSelect.classList.add('d-none');
+    productSelect.disabled = true;
+    productSelect.value = '';
+
+    productInput.classList.remove('d-none');
+    productInput.disabled = false;
+    productInput.value = '';
+    productInput.focus();
+  }
+
+  categorySelect.addEventListener('change', function () {
+    if (categorySelect.value === 'Oziq-ovqat') {
+      showFoodProducts();
+    } else {
+      showManualProductInput();
+    }
+  });
+});
+</script>
 {% endblock %}
