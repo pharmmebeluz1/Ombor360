@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block title %}Abonent holati — Ombor360°{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-center" style="min-height:65vh">
+  <div class="modern-card text-center" style="max-width:620px">
+    <div class="display-4 text-warning mb-3"><i class="bi bi-hourglass-split"></i></div>
+    <h2 class="fw-bold">Abonent muddati tugagan</h2>
+    {% if company %}<p class="text-secondary fs-5 mb-2">{{ company.name }}</p>{% endif %}
+    <p class="text-secondary">Ma’lumotlar o‘chirilmagan. Xizmat davom etishi uchun abonent muddatini yangilash kerak.</p>
+    {% if company and company.subscription_end %}<div class="alert alert-light border">Oxirgi muddat: <strong>{{ company.subscription_end.strftime('%d.%m.%Y') }}</strong></div>{% endif %}
+    <a href="{{ url_for('logout') }}" class="btn btn-outline-dark">Chiqish</a>
+  </div>
+</div>
+{% endblock %}

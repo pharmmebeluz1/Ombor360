@@ -42,3 +42,11 @@ a{text-decoration:none}
 .scanner-main{flex:1;min-width:0}.scanner-title{font-size:17px;font-weight:850}.scanner-sub{font-size:12px;color:#6d7d91;margin:3px 0 10px}.scanner-row{display:flex;gap:8px}.scanner-input{min-height:44px;border-radius:11px;border:1px solid #cfe5d8;font-size:15px}.scanner-input:focus{border-color:#1bb76b;box-shadow:0 0 0 .18rem rgba(27,183,107,.12)}
 .scanner-feedback{min-height:22px;margin-top:8px;font-size:12px;font-weight:700}.scanner-feedback.success{color:#087c48}.scanner-feedback.error{color:#d52d2d}.scanner-feedback .bi{margin-right:5px}.sku-chip{display:inline-flex;align-items:center;background:#eef7f2;color:#176341;border:1px solid #d8ecdf;border-radius:8px;padding:4px 7px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;font-weight:700}.barcode-entry{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.product-search-form{width:min(430px,100%)}
 @media(max-width:620px){.scanner-card{flex-direction:column}.scanner-row{flex-direction:column}.product-search-form{width:100%}}
+
+/* v8 multi-company */
+.tenant-mini{margin-top:10px;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.09);display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#d9f8eb}
+.tenant-mini span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.company-chip{display:flex;align-items:center;gap:9px;padding:7px 11px;border:1px solid #d9e7e2;border-radius:12px;background:#f7fbf9;min-width:150px}
+.company-chip i{font-size:19px;color:#07925c}.company-chip div{display:flex;flex-direction:column;line-height:1.15}.company-chip strong{font-size:12px;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.company-chip small{font-size:10px;color:#6b7280;margin-top:3px}
+.super-title{display:flex;align-items:center;gap:10px;color:#52615c;font-weight:700}
+@media(max-width:1200px){.company-chip{display:none}}

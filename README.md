@@ -1,42 +1,36 @@
-# Ombor360° — Modern Dashboard v2
+# Ombor360° v8 — Ko‘p abonentli tizim
 
-Ombor, kirim-chiqim, kassa, xodim avansi, oylik va sof foyda nazorati uchun Flask dasturi.
+Bu versiya bitta Ombor360° saytida bir nechta korxona/abonentni alohida kabinetlarda boshqaradi.
 
-## v2 yangiliklari
-- Yangi premium Ombor360° bosh sahifa dizayni
-- 6 ta KPI: ombor qiymati, bugungi kirim, bugungi chiqim, sof foyda, kam qolgan mahsulot, faol xodimlar
-- Oxirgi 6 oy kirim/chiqim grafigi
-- Kam qolgan mahsulotlar paneli
-- Oxirgi harakatlar
-- Eng ko‘p kirgan mahsulotlar TOP-5
-- Pul so‘rovlari preview
-- Tezkor Kirim / Chiqim / Mahsulot / Hisobot tugmalari
-- Mahsulot qidirish
-- Hisobotlar va Sozlamalar sahifasi
-- Telefon/planshet uchun moslashuvchan menyu
-- Jinja format xatolari tuzatildi
+## Yangi imkoniyatlar
 
-## Asosiy funksiyalar
-- Mahsulotlar va minimal qoldiq
-- Kirim / chiqim / qaytim
-- Mashina, davlat raqami, haydovchi, kim berdi / kim oldi
-- Kamera yozuviga URL bog‘lash
-- Xodim pul so‘rovi → rahbar tasdig‘i → kassir berdi → xodim oldim
-- Avansni oylikdan ayrish
-- Oylikni oy bo‘yicha yopish
-- Tushum / xarajat / sof foyda
-- Audit tarixi
-- Rollar: admin, manager, warehouse, cashier, accountant, employee
+- Super Admin paneli
+- Yangi korxona/abonent ochish
+- Har korxona uchun alohida rahbar login/paroli
+- Korxona ma’lumotlarini `company_id` bilan ajratish
+- Har korxonaning mahsulotlari, kirim-chiqimi, moliyasi, xodimlari va hisobotlari bir-biriga aralashmaydi
+- Abonent muddati va oylik tarif
+- +30 kun yoki istalgan kun miqdorida uzaytirish
+- Abonentni vaqtincha to‘xtatish/faollashtirish
+- Super Admin korxona kabinetiga kirib tekshira oladi
+- Korxona admin parolini Super Admin panelidan almashtirish
+- Eski Ombor360 ma’lumotlari `Asosiy korxona`ga avtomatik biriktiriladi
 
-## Test loginlar
-- Rahbar: `admin` / `admin123`
-- Omborchi: `ombor` / `1234`
-- Kassir: `kassir` / `1234`
-- Buxgalter: `buxgalter` / `1234`
+## Boshlang‘ich loginlar
 
-Birinchi real foydalanishda parollarni almashtiring.
+Eski korxona rahbari:
+- Login: `admin`
+- Parol: `admin123`
+
+Super Admin:
+- Login: `.env` dagi `SUPERADMIN_USERNAME`
+- Parol: `.env` dagi `SUPERADMIN_PASSWORD`
+- Agar Render Environment Variables qo‘yilmasa: `superadmin / admin360`
+
+**Muhim:** Internetga chiqarishdan oldin `SUPERADMIN_PASSWORD`ni kuchli parolga almashtiring.
 
 ## Render
+
 Build Command:
 ```bash
 pip install -r requirements.txt
@@ -47,41 +41,16 @@ Start Command:
 gunicorn app:app
 ```
 
-Render GitHub repositoryga ulangan bo‘lsa, GitHubdagi yangi commitdan keyin avtomatik qayta deploy qiladi.
+Render > Environment bo‘limida kamida quyidagilarni kiriting:
 
-## Muhim
-SQLite sinov/MVP uchun. Doimiy real ishlatish uchun PostgreSQL tavsiya etiladi, chunki Render Free servisida lokal SQLite fayli doimiy saqlanishiga tayanib bo‘lmaydi.
+- `SECRET_KEY` — uzun tasodifiy qiymat
+- `SUPERADMIN_USERNAME` — masalan `owner360`
+- `SUPERADMIN_PASSWORD` — kuchli parol
 
-## Barcode / QR skaner (v3)
+## Baza
 
-Winson WAI-5770D-USB kabi USB HID skanerlar klaviatura sifatida ishlaydi.
+Sinov uchun SQLite ishlaydi. Ko‘p haqiqiy mijoz bilan ishlashda PostgreSQL tavsiya qilinadi. `DATABASE_URL` ga PostgreSQL manzilini kiritsangiz dastur `psycopg` orqali ulanadi.
 
-1. Mahsulotlar bo‘limida `Barcode / SKU` maydonini bosib, kodni skaner qiling. Bo‘sh qoldirilsa tizim `OMB-000001` ko‘rinishida avtomatik kod beradi.
-2. Kirim yoki Chiqim sahifasida `Barcode / QR skaner` maydonida mahsulot kodini skaner qiling.
-3. Skaner Enter yuborsa, mahsulot avtomatik tanlanadi va fokus `Miqdor` maydoniga o‘tadi.
-4. Mahsulot nomi, barcode yoki kategoriya bo‘yicha qidirish mumkin.
+## GitHub
 
-Eslatma: bir xil barcode/SKU ikki mahsulotga biriktirilmaydi.
-
-## v5 — Avtomatik QR va joylashuv
-
-Bu versiyada mahsulot qo‘shishda quyidagilar kiritiladi:
-- mahsulot nomi va kategoriya;
-- birlik va og‘irlik (kg);
-- ombor, qator va polka;
-- yaroqlilik muddati;
-- minimal qoldiq, kirim va sotuv narxi.
-
-`Saqlash` bosilganda mahsulotga `OMB-000001` ko‘rinishida yagona kod yaratiladi (agar Barcode/SKU qo‘lda kiritilmagan bo‘lsa) va QR etiketka avtomatik tayyorlanadi.
-
-### Skaner rejimi
-`Skaner` menyusiga kiring va Bluetooth/USB skaner bilan QR yoki barcode ni o‘qing. Mahsulot kartasida:
-- nomi;
-- qoldiq;
-- og‘irligi;
-- qaysi ombor/qator/polkada turgani;
-- yaroqlilik muddati va qancha kun qolgani;
-- kirim/sotuv narxi ko‘rinadi.
-
-### A4 printer
-`Mahsulotlar → A4 QR etiketkalar` orqali oddiy printerdan QR etiketkalar chiqarish mumkin. Keyin termal printerga o‘tilganda mahsulot kodlarini o‘zgartirish shart emas.
+ZIP ichidagi `Ombor360` papkasidagi fayllarni repositoryga yuklang. `.env` faylni GitHub’ga yuklamang.

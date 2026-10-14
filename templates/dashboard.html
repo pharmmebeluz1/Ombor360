@@ -43,7 +43,7 @@
   </section>
   <section class="panel">
     <div class="panel-head"><h2 class="panel-title"><i class="bi bi-lightning-charge-fill text-warning"></i>Tezkor tugmalar</h2></div>
-    <div class="quick-grid">{% if current_user.role in ['admin','manager','warehouse'] %}<a class="quick-btn q-green" href="{{ url_for('movement', kind='IN') }}"><i class="bi bi-plus-circle-fill"></i>Kirim qilish</a><a class="quick-btn q-blue" href="{{ url_for('movement', kind='OUT') }}"><i class="bi bi-dash-circle-fill"></i>Chiqim qilish</a><a class="quick-btn q-purple" href="{{ url_for('products') }}"><i class="bi bi-box-seam-fill"></i>Mahsulot qo‘shish</a>{% endif %}{% if current_user.role in ['admin','manager'] %}<a class="quick-btn q-gray" href="{{ url_for('reports') }}"><i class="bi bi-file-earmark-bar-graph-fill"></i>Hisobot olish</a>{% else %}<a class="quick-btn q-gray" href="{{ url_for('movements') }}"><i class="bi bi-list-check"></i>Harakatlar</a>{% endif %}</div>
+    <div class="quick-grid">{% if effective_role in ['admin','manager','warehouse'] %}<a class="quick-btn q-green" href="{{ url_for('movement', kind='IN') }}"><i class="bi bi-plus-circle-fill"></i>Kirim qilish</a><a class="quick-btn q-blue" href="{{ url_for('movement', kind='OUT') }}"><i class="bi bi-dash-circle-fill"></i>Chiqim qilish</a><a class="quick-btn q-purple" href="{{ url_for('products') }}"><i class="bi bi-box-seam-fill"></i>Mahsulot qo‘shish</a>{% endif %}{% if effective_role in ['admin','manager'] %}<a class="quick-btn q-gray" href="{{ url_for('reports') }}"><i class="bi bi-file-earmark-bar-graph-fill"></i>Hisobot olish</a>{% else %}<a class="quick-btn q-gray" href="{{ url_for('movements') }}"><i class="bi bi-list-check"></i>Harakatlar</a>{% endif %}</div>
   </section>
 </div>
 {% endblock %}

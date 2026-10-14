@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% block title %}Abonentlar — Ombor360°{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+  <div>
+    <h1 class="page-title mb-1">Abonentlar boshqaruvi</h1>
+    <div class="text-secondary">Har bir korxona alohida kabinetda ishlaydi. Ma’lumotlar bir-biriga aralashmaydi.</div>
+  </div>
+  <button class="btn btn-success fw-bold" data-bs-toggle="modal" data-bs-target="#newCompany"><i class="bi bi-plus-circle me-1"></i> Yangi abonent</button>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3"><div class="modern-card h-100"><div class="text-secondary small">Jami korxona</div><div class="kpi-number mt-2">{{ total_companies }}</div></div></div>
+  <div class="col-md-3"><div class="modern-card h-100"><div class="text-secondary small">Faol abonent</div><div class="kpi-number mt-2 text-success">{{ active_count }}</div></div></div>
+  <div class="col-md-3"><div class="modern-card h-100"><div class="text-secondary small">Muddati tugagan / to‘xtagan</div><div class="kpi-number mt-2 text-danger">{{ expired_count }}</div></div></div>
+  <div class="col-md-3"><div class="modern-card h-100"><div class="text-secondary small">Oylik abonent yig‘indisi</div><div class="kpi-number mt-2">{{ monthly_total|money }} <span class="fs-6 fw-normal">$</span></div></div></div>
+</div>
+
+<div class="modern-card p-0 overflow-hidden">
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead><tr><th>Korxona</th><th>Admin</th><th>Tarif</th><th>Abonent</th><th>Holat</th><th>Foydalanuvchi</th><th>Mahsulot</th><th class="text-end">Boshqaruv</th></tr></thead>
+      <tbody>
+      {% for item in company_rows %}
+      {% set c=item.company %}
+      <tr>
+        <td><div class="fw-bold">{{ c.name }}</div><div class="small text-secondary">{{ c.code }}{% if c.phone %} • {{ c.phone }}{% endif %}</div></td>
+        <td>{% if item.admin_user %}<div class="fw-semibold">{{ item.admin_user.full_name }}</div><div class="small text-secondary">{{ item.admin_user.username }}</div>{% else %}<span class="text-danger">Admin yo‘q</span>{% endif %}</td>
+        <td><span class="badge text-bg-light border">{{ c.plan_name }}</span><div class="small mt-1">{{ c.monthly_fee|money }}$/oy</div></td>
+        <td>
+          {% if c.subscription_end %}<div class="fw-semibold">{{ c.subscription_end.strftime('%d.%m.%Y') }}</div>{% endif %}
+          {% if item.days_left is none %}<span class="badge text-bg-success">Cheklanmagan</span>
+          {% elif item.days_left < 0 %}<span class="badge text-bg-danger">{{ -item.days_left }} kun o‘tgan</span>
+          {% elif item.days_left <= 5 %}<span class="badge text-bg-warning">{{ item.days_left }} kun qoldi</span>
+          {% else %}<span class="badge text-bg-success">{{ item.days_left }} kun qoldi</span>{% endif %}
+        </td>
+        <td>{% if c.active and (item.days_left is none or item.days_left >= 0) %}<span class="badge text-bg-success">Faol</span>{% elif not c.active %}<span class="badge text-bg-secondary">To‘xtatilgan</span>{% else %}<span class="badge text-bg-danger">Muddati tugagan</span>{% endif %}</td>
+        <td>{{ item.users_count }}</td><td>{{ item.products_count }}</td>
+        <td class="text-end">
+          <div class="d-flex flex-wrap justify-content-end gap-1">
+            <form method="post" action="{{ url_for('superadmin_company_enter', company_id=c.id) }}"><button class="btn btn-sm btn-success"><i class="bi bi-box-arrow-in-right"></i> Kirish</button></form>
+            <form method="post" action="{{ url_for('superadmin_company_extend', company_id=c.id) }}" class="d-flex gap-1"><input type="hidden" name="days" value="30"><button class="btn btn-sm btn-outline-primary">+30 kun</button></form>
+            <button class="btn btn-sm btn-outline-dark" data-bs-toggle="modal" data-bs-target="#manage{{c.id}}"><i class="bi bi-gear"></i></button>
+            <form method="post" action="{{ url_for('superadmin_company_toggle', company_id=c.id) }}"><button class="btn btn-sm {% if c.active %}btn-outline-danger{% else %}btn-outline-success{% endif %}">{% if c.active %}To‘xtatish{% else %}Faollashtirish{% endif %}</button></form>
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" class="text-center py-5 text-secondary">Hali abonent qo‘shilmagan</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="modal fade" id="newCompany" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content"><form method="post" action="{{ url_for('superadmin_company_create') }}">
+  <div class="modal-header"><h5 class="modal-title fw-bold">Yangi abonent / korxona</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body"><div class="row g-3">
+    <div class="col-md-6"><label class="form-label">Korxona nomi</label><input class="form-control" name="name" placeholder="Masalan: Beton Servis" required></div>
+    <div class="col-md-3"><label class="form-label">Kod</label><input class="form-control text-uppercase" name="code" placeholder="BETON"></div>
+    <div class="col-md-3"><label class="form-label">Telefon</label><input class="form-control" name="phone" placeholder="+998..."></div>
+    <div class="col-md-4"><label class="form-label">Tarif</label><select class="form-select" name="plan_name"><option>START</option><option>BUSINESS</option><option>PRO</option></select></div>
+    <div class="col-md-4"><label class="form-label">Oyiga</label><div class="input-group"><input class="form-control" type="number" step="0.01" name="monthly_fee" value="10"><span class="input-group-text">$</span></div></div>
+    <div class="col-md-4"><label class="form-label">Birinchi muddat</label><div class="input-group"><input class="form-control" type="number" name="subscription_days" value="30" min="1"><span class="input-group-text">kun</span></div></div>
+    <div class="col-12"><hr><div class="fw-bold mb-2">Korxona rahbari uchun login</div></div>
+    <div class="col-md-4"><label class="form-label">F.I.Sh.</label><input class="form-control" name="admin_name" value="Rahbar" required></div>
+    <div class="col-md-4"><label class="form-label">Login</label><input class="form-control" name="admin_username" required></div>
+    <div class="col-md-4"><label class="form-label">Boshlang‘ich parol</label><input class="form-control" name="admin_password" value="1234" required></div>
+    <div class="col-12"><label class="form-label">Izoh</label><input class="form-control" name="note" placeholder="Ixtiyoriy"></div>
+  </div></div>
+  <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Bekor</button><button class="btn btn-success fw-bold">Abonent yaratish</button></div>
+</form></div></div></div>
+
+{% for item in company_rows %}
+{% set c=item.company %}
+<div class="modal fade" id="manage{{c.id}}" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title fw-bold">{{ c.name }}</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body">
+    <form method="post" action="{{ url_for('superadmin_company_update', company_id=c.id) }}" class="row g-2 mb-4">
+      <div class="col-4"><label class="form-label small">Tarif</label><select class="form-select" name="plan_name"><option {% if c.plan_name=='START' %}selected{% endif %}>START</option><option {% if c.plan_name=='BUSINESS' %}selected{% endif %}>BUSINESS</option><option {% if c.plan_name=='PRO' %}selected{% endif %}>PRO</option></select></div>
+      <div class="col-4"><label class="form-label small">Oyiga $</label><input class="form-control" type="number" step="0.01" name="monthly_fee" value="{{ c.monthly_fee }}"></div>
+      <div class="col-4"><label class="form-label small">Telefon</label><input class="form-control" name="phone" value="{{ c.phone or '' }}"></div>
+      <div class="col-12"><label class="form-label small">Izoh</label><input class="form-control" name="note" value="{{ c.note or '' }}"></div>
+      <div class="col-12"><button class="btn btn-dark w-100">Saqlash</button></div>
+    </form>
+    <div class="border rounded p-3 mb-3"><div class="fw-bold mb-2">Abonentni uzaytirish</div><form method="post" action="{{ url_for('superadmin_company_extend', company_id=c.id) }}" class="d-flex gap-2"><input class="form-control" type="number" name="days" value="30" min="1"><button class="btn btn-primary text-nowrap">Kun qo‘shish</button></form></div>
+    {% if item.admin_user %}<div class="border rounded p-3"><div class="fw-bold mb-2">Admin parolini yangilash — {{ item.admin_user.username }}</div><form method="post" action="{{ url_for('superadmin_reset_password', company_id=c.id) }}" class="d-flex gap-2"><input class="form-control" name="new_password" placeholder="Yangi parol" required><button class="btn btn-outline-danger text-nowrap">Parolni almashtirish</button></form></div>{% endif %}
+  </div>
+</div></div></div>
+{% endfor %}
+{% endblock %}
