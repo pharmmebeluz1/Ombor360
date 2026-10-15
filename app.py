@@ -926,6 +926,13 @@ def dashboard():
         Sale.created_at < day_end,
     ).all()
     today_sales_value = sum(x.total_amount for x in today_sales)
+    today_sales_cost = sum(x.cost_amount for x in today_sales)
+    today_sales_profit = sum(x.profit_amount for x in today_sales)
+    today_paid_amount = sum(min(float(x.paid_amount or 0), float(x.total_amount or 0)) for x in today_sales)
+    today_debt = sum(x.debt_amount for x in today_sales)
+    # "Hozirgi pul natijasi" real tushgan puldan sotilgan mahsulot tannarxini ayiradi.
+    # Masalan: 410 000 tushdi - 540 000 tannarx = -130 000.
+    today_cash_result = today_paid_amount - today_sales_cost
 
     now = tashkent_now()
     chart_labels, chart_in, chart_out = [], [], []
@@ -979,6 +986,11 @@ def dashboard():
         today_out_count=len(today_out),
         today_sales_value=today_sales_value,
         today_sales_count=len(today_sales),
+        today_sales_cost=today_sales_cost,
+        today_sales_profit=today_sales_profit,
+        today_paid_amount=today_paid_amount,
+        today_debt=today_debt,
+        today_cash_result=today_cash_result,
         total_sales_revenue=total_sales_revenue,
         total_sales_profit=total_sales_profit,
         total_debt=total_debt,

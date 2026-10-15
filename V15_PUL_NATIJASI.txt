@@ -1,0 +1,7 @@
+Ombor360 v15
+- Bosh sahifaga Bugun tushgan pul qo'shildi.
+- Barcha ochiq qarzdorlik alohida ko'rsatiladi.
+- "Sof foyda" o'rniga aniqroq "Savdo foydasi" ko'rsatiladi.
+- "Hozirgi pul natijasi" = bugun real tushgan pul - bugun sotilgan mahsulot tannarxi.
+- Qarzdorlik bo'lsa, qarz to'liq undirilgandagi savdo foydasi izohda ko'rsatiladi.
+Misol: 630 000 sotuv, 540 000 tannarx, 410 000 to'landi => savdo foydasi +90 000, qarz 220 000, hozirgi pul natijasi -130 000.
