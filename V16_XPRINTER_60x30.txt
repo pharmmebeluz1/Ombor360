@@ -1,0 +1,6 @@
+Ombor360° v16 — Xprinter 60×30 mm etiketka
+- Etiketka pechat shabloni 60×30 mm qilindi.
+- QR kod kattalashtirildi.
+- Mahsulot nomi, kod, ombor/qator/polka va qoldiq yirikroq ko‘rinadi.
+- @page 60mm × 30mm, margin 0.
+- Browser sana/URL/1-1 kolontitullarini o‘chirib pechat qilish bo‘yicha ko‘rsatma qo‘shildi.

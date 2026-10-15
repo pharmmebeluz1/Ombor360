@@ -2,12 +2,12 @@
 {% block title %}Etiketkalar — Ombor360°{% endblock %}
 {% block content %}
 {% if created %}
-<div class="alert alert-success no-print"><i class="bi bi-check-circle-fill me-2"></i>Mahsulot saqlandi. QR-kod avtomatik yaratildi — hozir chop etishingiz mumkin.</div>
+<div class="alert alert-success no-print"><i class="bi bi-check-circle-fill me-2"></i>Mahsulot saqlandi. QR-kod avtomatik yaratildi — hozir 60×30 mm etiketkaga chop etishingiz mumkin.</div>
 {% endif %}
 <div class="label-toolbar no-print">
   <div>
-    <h1 class="page-title mb-1">{% if label_type=='qr' %}A4 QR etiketkalar{% else %}A4 Barcode etiketkalar{% endif %}</h1>
-    <div class="text-secondary small">{{ product_count }} ta mahsulot • {{ label_rows|length }} ta etiketka</div>
+    <h1 class="page-title mb-1">{% if label_type=='qr' %}60×30 mm QR etiketkalar{% else %}60×30 mm Barcode etiketkalar{% endif %}</h1>
+    <div class="text-secondary small">{{ product_count }} ta mahsulot • {{ label_rows|length }} ta etiketka • Xprinter XP-365B uchun</div>
   </div>
   <div class="d-flex flex-wrap gap-2 align-items-end">
     <div class="btn-group">
@@ -25,26 +25,29 @@
   </div>
 </div>
 
-<div class="a4-sheet {% if label_type=='qr' %}qr-sheet{% endif %}">
+<div class="print-help modern-card no-print mb-3">
+  <strong>XP-365B pechat sozlamasi:</strong> qog‘oz <b>60.0 × 30.0 mm</b>, masshtab <b>100%</b>, margin <b>yo‘q</b>. Brauzerda “Yuqori va pastki kolontitullar / Верхние и нижние колонтитулы” belgisini olib tashlang.
+</div>
+
+<div class="label-sheet">
   {% for row in label_rows %}
-  <div class="print-label {% if label_type=='qr' %}qr-label{% endif %}">
-    <div class="label-brand">OMBOR360°</div>
-    <div class="label-name">{{ row.product.name }}</div>
+  <div class="print-label {% if label_type=='qr' %}qr-label{% else %}barcode-label{% endif %}">
     {% if label_type=='qr' %}
+      <div class="label-name">{{ row.product.name }}</div>
       <div class="qr-main">
         {% if row.qr_uri %}<img class="qr-img" src="{{ row.qr_uri }}" alt="{{ row.code }}">{% endif %}
         <div class="qr-info">
-          <div><b>{{ row.code }}</b></div>
-          {% if row.product.weight_kg %}<div>{{ row.product.weight_kg|qty }} kg</div>{% endif %}
-          <div>{{ row.product.warehouse or 'Ombor' }}</div>
-          <div>Qator: <b>{{ row.product.row_code or '-' }}</b> • Polka: <b>{{ row.product.shelf_code or '-' }}</b></div>
-          {% if row.product.expiry_date %}<div>Muddat: <b>{{ row.product.expiry_date.strftime('%d.%m.%Y') }}</b></div>{% endif %}
+          <div class="code"><b>{{ row.code }}</b></div>
+          <div><b>Joy:</b> {{ row.product.warehouse or 'Ombor' }}</div>
+          <div><b>Qator:</b> {{ row.product.row_code or '-' }} &nbsp; <b>Polka:</b> {{ row.product.shelf_code or '-' }}</div>
+          <div><b>Qoldiq:</b> {{ row.product.quantity|qty }} {{ row.product.unit }}</div>
+          {% if row.product.expiry_date %}<div><b>Muddat:</b> {{ row.product.expiry_date.strftime('%d.%m.%Y') }}</div>{% endif %}
         </div>
       </div>
     {% else %}
+      <div class="label-name">{{ row.product.name }}</div>
       {% if row.barcode_uri %}<img class="barcode-img" src="{{ row.barcode_uri }}" alt="{{ row.code }}">{% else %}<div class="barcode-fallback">{{ row.code }}</div>{% endif %}
-      <div class="label-meta"><span><b>Kod:</b> {{ row.code }}</span><span><b>Joy:</b> {{ row.product.location or '-' }}</span></div>
-      <div class="label-meta"><span><b>Birlik:</b> {{ row.product.unit }}</span><span><b>Qoldiq:</b> {{ row.product.quantity|qty }}</span></div>
+      <div class="barcode-info"><b>{{ row.code }}</b> • {{ row.product.row_code or '-' }}/{{ row.product.shelf_code or '-' }} • {{ row.product.quantity|qty }} {{ row.product.unit }}</div>
     {% endif %}
   </div>
   {% else %}<div class="modern-card no-print">Etiketka chiqarish uchun mahsulot topilmadi.</div>{% endfor %}
@@ -52,13 +55,23 @@
 
 <style>
 .label-toolbar{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:18px}
-.a4-sheet{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4mm;background:#fff;padding:6mm;border-radius:16px}
-.print-label{height:35mm;border:1px solid #222;border-radius:2mm;padding:2.2mm 2.5mm;overflow:hidden;background:#fff;color:#000;display:flex;flex-direction:column;justify-content:center}
-.label-brand{font-size:9px;font-weight:900;letter-spacing:.8px;color:#087a49}.label-name{font-size:13px;line-height:1.1;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:1mm 0 .5mm}
-.barcode-img{display:block;width:100%;height:16mm;object-fit:contain;object-position:center;margin:0 auto}.barcode-fallback{font-family:monospace;font-size:14px;font-weight:700;text-align:center;padding:5mm 0;border:1px dashed #aaa}.label-meta{display:flex;justify-content:space-between;gap:4px;font-size:7.5px;line-height:1.1;margin-top:.4mm}
-.qr-label{height:45mm}.qr-main{display:flex;align-items:center;gap:2.5mm;min-height:31mm}.qr-img{width:27mm;height:27mm;object-fit:contain;flex:0 0 27mm}.qr-info{font-size:8px;line-height:1.35;overflow:hidden}.qr-info>div{margin-bottom:.4mm}
-@page{size:A4 portrait;margin:8mm}
-@media print{body{background:#fff!important}.sidebar,.topbar,.no-print,.flash-stack{display:none!important}.main-wrap,.content{margin:0!important;padding:0!important;width:100%!important;max-width:none!important}.a4-sheet{display:grid!important;grid-template-columns:repeat(3,1fr)!important;gap:4mm!important;padding:0!important;border-radius:0!important}.print-label{break-inside:avoid;page-break-inside:avoid;box-shadow:none!important}.qr-label{height:45mm!important}}
-@media(max-width:900px){.a4-sheet{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:600px){.a4-sheet{grid-template-columns:1fr}.print-label{height:auto;min-height:45mm}}
+.label-sheet{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start}
+.print-label{box-sizing:border-box;width:60mm;height:30mm;border:1px solid #111;border-radius:1.5mm;padding:1.4mm 1.6mm;overflow:hidden;background:#fff;color:#000}
+.label-name{height:5mm;font-size:12px;line-height:5mm;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-bottom:.25mm solid #111;margin-bottom:1mm}
+.qr-main{height:21mm;display:flex;align-items:center;gap:1.5mm}
+.qr-img{width:20mm;height:20mm;object-fit:contain;flex:0 0 20mm}
+.qr-info{font-size:7.8px;line-height:1.28;overflow:hidden;flex:1;min-width:0}
+.qr-info>div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:.35mm}.qr-info .code{font-size:7px}
+.barcode-label{display:flex;flex-direction:column}.barcode-img{display:block;width:55mm;height:14mm;object-fit:fill;margin:.5mm auto 0}.barcode-fallback{font-family:monospace;font-size:13px;font-weight:700;text-align:center;padding:3mm 0}.barcode-info{font-size:7.5px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.5mm}
+@page{size:60mm 30mm;margin:0}
+@media print{
+  html,body{width:60mm!important;margin:0!important;padding:0!important;background:#fff!important}
+  .sidebar,.topbar,.no-print,.flash-stack{display:none!important}
+  .main-wrap,.content{margin:0!important;padding:0!important;width:60mm!important;max-width:60mm!important;min-width:60mm!important}
+  .label-sheet{display:block!important;margin:0!important;padding:0!important;width:60mm!important}
+  .print-label{width:60mm!important;height:30mm!important;margin:0!important;border-radius:0!important;box-shadow:none!important;break-after:page;page-break-after:always;break-inside:avoid;page-break-inside:avoid}
+  .print-label:last-child{break-after:auto;page-break-after:auto}
+}
+@media(max-width:600px){.label-sheet{justify-content:center}.print-label{transform-origin:top left}}
 </style>
 {% endblock %}
