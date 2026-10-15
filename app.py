@@ -1046,10 +1046,14 @@ def worker_dashboard():
         created_by_id=current_user.id,
     ).order_by(StockMovement.created_at.desc()).limit(8).all()
     total_products = Product.query.filter_by(company_id=cid).count()
-    low_stock = Product.query.filter(
+    low_stock_query = Product.query.filter(
         Product.company_id == cid,
         Product.quantity <= Product.min_quantity,
-    ).count()
+    )
+    low_stock = low_stock_query.count()
+    low_stock_products = low_stock_query.order_by(
+        Product.quantity.asc(), Product.name.asc()
+    ).all()
     expiring_limit = tashkent_now().date() + timedelta(days=30)
     expiring = Product.query.filter(
         Product.company_id == cid,
@@ -1061,6 +1065,7 @@ def worker_dashboard():
         recent=recent,
         total_products=total_products,
         low_stock=low_stock,
+        low_stock_products=low_stock_products,
         expiring=expiring,
     )
 

@@ -1,0 +1,10 @@
+Ombor360° v13
+
+Xodim mobil panelida kam qolgan mahsulotlar endi nomma-nom ko‘rinadi.
+- Mahsulot nomi
+- Hozirgi qoldiq
+- Minimal qoldiq
+- Ombor / qator / polka
+- Mahsulot kartasiga tez kirish
+
+Qolgan funksiyalar o‘zgartirilmagan.
