@@ -95,3 +95,7 @@ PostgreSQL uchun `psycopg[binary]==3.3.2` ishlatiladi.
 
 ## v12 — Telefon va kompyuterga o‘rnatish
 Ombor360° endi PWA sifatida o‘rnatiladi. Android/Chrome’da “O‘rnatish” tugmasi orqali, iPhone’da Safari → Share → Add to Home Screen orqali, Windows/Chrome’da esa install tugmasi orqali alohida dastur ko‘rinishida ishlaydi.
+
+
+## v14 — Sotuv
+Alohida Sotuv bo‘limi, avtomatik tannarx/foyda va qarzdorlik hisobi qo‘shildi.

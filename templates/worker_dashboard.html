@@ -87,7 +87,7 @@
       <thead><tr><th>Vaqt</th><th>Turi</th><th>Mahsulot</th><th>Miqdor</th></tr></thead>
       <tbody>
       {% for m in recent %}
-        <tr><td>{{ m.created_at|localdt }}</td><td>{% if m.movement_type=='IN' %}<span class="status-badge status-in">Kirim</span>{% elif m.movement_type=='OUT' %}<span class="status-badge status-out">Chiqim</span>{% else %}<span class="status-badge status-pending">{{m.movement_type}}</span>{% endif %}</td><td>{{m.product.name}}</td><td>{{m.quantity|qty}} {{m.product.unit}}</td></tr>
+        <tr><td>{{ m.created_at|localdt }}</td><td>{% if m.movement_type=='IN' %}<span class="status-badge status-in">Kirim</span>{% elif m.movement_type=='OUT' %}<span class="status-badge status-out">Chiqim</span>{% elif m.movement_type=='SALE' %}<span class="status-badge status-pending">Sotuv</span>{% else %}<span class="status-badge status-pending">{{m.movement_type}}</span>{% endif %}</td><td>{{m.product.name}}</td><td>{{m.quantity|qty}} {{m.product.unit}}</td></tr>
       {% else %}<tr><td colspan="4" class="text-center text-secondary py-4">Hozircha operatsiya yo‘q.</td></tr>{% endfor %}
       </tbody>
     </table>

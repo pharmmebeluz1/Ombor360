@@ -103,6 +103,48 @@ class StockMovement(db.Model):
     created_by = db.relationship("User")
 
 
+class Sale(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey("company.id"), nullable=True, index=True)
+    sale_no = db.Column(db.String(50), unique=True, nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey("product.id"), nullable=False)
+    quantity = db.Column(db.Float, nullable=False)
+    sale_price = db.Column(db.Float, nullable=False, default=0)
+    cost_price = db.Column(db.Float, nullable=False, default=0)
+    customer_name = db.Column(db.String(160), nullable=True)
+    customer_phone = db.Column(db.String(60), nullable=True)
+    payment_method = db.Column(db.String(40), nullable=False, default="Naqd")
+    paid_amount = db.Column(db.Float, nullable=False, default=0)
+    due_date = db.Column(db.Date, nullable=True)
+    vehicle_model = db.Column(db.String(100), nullable=True)
+    vehicle_plate = db.Column(db.String(40), nullable=True)
+    driver_name = db.Column(db.String(120), nullable=True)
+    note = db.Column(db.Text, nullable=True)
+    created_by_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    cancelled = db.Column(db.Boolean, default=False)
+
+    company = db.relationship("Company")
+    product = db.relationship("Product")
+    created_by = db.relationship("User")
+
+    @property
+    def total_amount(self):
+        return float(self.quantity or 0) * float(self.sale_price or 0)
+
+    @property
+    def cost_amount(self):
+        return float(self.quantity or 0) * float(self.cost_price or 0)
+
+    @property
+    def profit_amount(self):
+        return self.total_amount - self.cost_amount
+
+    @property
+    def debt_amount(self):
+        return max(self.total_amount - float(self.paid_amount or 0), 0)
+
+
 class CashRequest(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     company_id = db.Column(db.Integer, db.ForeignKey("company.id"), nullable=True, index=True)

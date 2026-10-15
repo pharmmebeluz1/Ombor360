@@ -43,6 +43,9 @@
         <a class="side-link {% if request.endpoint=='movement' and request.view_args and request.view_args.get('kind')=='IN' %}active{% endif %}" href="{{ url_for('movement', kind='IN') }}"><i class="bi bi-arrow-down-square-fill"></i><span>Kirim</span></a>
         <a class="side-link {% if request.endpoint=='movement' and request.view_args and request.view_args.get('kind')=='OUT' %}active{% endif %}" href="{{ url_for('movement', kind='OUT') }}"><i class="bi bi-arrow-up-square-fill"></i><span>Chiqim</span></a>
         {% endif %}
+        {% if effective_role in ['admin','manager','cashier'] %}
+        <a class="side-link {% if request.endpoint=='sales' %}active{% endif %}" href="{{ url_for('sales') }}"><i class="bi bi-cart-check-fill"></i><span>Sotuv</span></a>
+        {% endif %}
         <a class="side-link {% if request.endpoint=='movements' %}active{% endif %}" href="{{ url_for('movements') }}"><i class="bi bi-clipboard2-data-fill"></i><span>Harakatlar</span></a>
         <a class="side-link {% if request.endpoint=='cash_requests' %}active{% endif %}" href="{{ url_for('cash_requests') }}"><i class="bi bi-cash-coin"></i><span>Pul so‘rovlari</span>{% if nav_pending_cash %}<span class="nav-badge">{{ nav_pending_cash }}</span>{% endif %}</a>
         {% if current_user.role != 'superadmin' %}

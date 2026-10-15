@@ -27,6 +27,7 @@ from models import (
     PayrollPayment,
     Product,
     Revenue,
+    Sale,
     StockMovement,
     SupportEvent,
     User,
@@ -262,6 +263,7 @@ def page_label(path):
         "/worker": "Xodim paneli",
         "/scan": "Skaner",
         "/movements": "Harakatlar",
+        "/sales": "Sotuv",
         "/cash": "Pul so‘rovlari",
         "/finance": "Moliya",
         "/employees": "Xodimlar",
@@ -895,9 +897,15 @@ def dashboard():
     inventory_cost = sum(float(p.quantity or 0) * float(p.cost_price or 0) for p in products)
     inventory_sale = sum(float(p.quantity or 0) * float(p.sale_price or 0) for p in products)
     low_stock = sorted([p for p in products if p.quantity <= p.min_quantity], key=lambda p: (p.quantity - p.min_quantity))
-    total_revenue = float(db.session.query(db.func.coalesce(db.func.sum(Revenue.amount), 0)).filter(Revenue.company_id == cid).scalar() or 0)
+    manual_revenue = float(db.session.query(db.func.coalesce(db.func.sum(Revenue.amount), 0)).filter(Revenue.company_id == cid).scalar() or 0)
     total_expense = float(db.session.query(db.func.coalesce(db.func.sum(Expense.amount), 0)).filter(Expense.company_id == cid).scalar() or 0)
-    profit = total_revenue - total_expense
+    sales_rows = Sale.query.filter_by(company_id=cid, cancelled=False).all()
+    total_sales_revenue = sum(x.total_amount for x in sales_rows)
+    total_sales_cost = sum(x.cost_amount for x in sales_rows)
+    total_sales_profit = total_sales_revenue - total_sales_cost
+    total_debt = sum(x.debt_amount for x in sales_rows)
+    total_revenue = manual_revenue + total_sales_revenue
+    profit = manual_revenue + total_sales_profit - total_expense
     recent = StockMovement.query.filter_by(company_id=cid, cancelled=False).order_by(StockMovement.created_at.desc()).limit(10).all()
 
     day_start, day_end = tashkent_day_utc_range()
@@ -911,6 +919,13 @@ def dashboard():
     today_out = [m for m in today_rows if m.movement_type == "OUT"]
     today_in_value = sum(float(m.quantity or 0) * float(m.unit_price or 0) for m in today_in)
     today_out_value = sum(float(m.quantity or 0) * float(m.unit_price or 0) for m in today_out)
+    today_sales = Sale.query.filter(
+        Sale.company_id == cid,
+        Sale.cancelled == False,
+        Sale.created_at >= day_start,
+        Sale.created_at < day_end,
+    ).all()
+    today_sales_value = sum(x.total_amount for x in today_sales)
 
     now = tashkent_now()
     chart_labels, chart_in, chart_out = [], [], []
@@ -962,6 +977,11 @@ def dashboard():
         today_out_value=today_out_value,
         today_in_count=len(today_in),
         today_out_count=len(today_out),
+        today_sales_value=today_sales_value,
+        today_sales_count=len(today_sales),
+        total_sales_revenue=total_sales_revenue,
+        total_sales_profit=total_sales_profit,
+        total_debt=total_debt,
         active_employees=active_employees,
         chart_labels=chart_labels,
         chart_in=chart_in,
@@ -1367,6 +1387,114 @@ def movement(kind):
     return render_template("movement_form.html", kind=kind, products=products_rows, preselected_id=preselected_id)
 
 
+@app.route("/sales", methods=["GET", "POST"])
+@role_required("admin", "manager", "cashier")
+def sales():
+    cid = current_company_id()
+    products_rows = Product.query.filter_by(company_id=cid).order_by(Product.name).all()
+
+    if request.method == "POST":
+        try:
+            product_id = int(request.form["product_id"])
+            quantity = float(request.form.get("quantity") or 0)
+            sale_price = float(request.form.get("sale_price") or 0)
+            paid_raw = (request.form.get("paid_amount") or "").strip()
+        except (TypeError, ValueError):
+            flash("Miqdor va narxni to‘g‘ri kiriting", "danger")
+            return redirect(url_for("sales"))
+
+        p = tenant_get_or_404(Product, product_id)
+        if quantity <= 0:
+            flash("Miqdor 0 dan katta bo‘lishi kerak", "danger")
+            return redirect(url_for("sales"))
+        if quantity > p.free_quantity:
+            flash(f"Yetarli qoldiq yo‘q. Erkin qoldiq: {p.free_quantity:g} {p.unit}", "danger")
+            return redirect(url_for("sales"))
+        if sale_price <= 0:
+            sale_price = float(p.sale_price or 0)
+        if sale_price <= 0:
+            flash("Sotuv narxini kiriting", "danger")
+            return redirect(url_for("sales"))
+
+        total_amount = quantity * sale_price
+        payment_method = (request.form.get("payment_method") or "Naqd").strip()
+        if paid_raw:
+            try:
+                paid_amount = max(0, min(float(paid_raw), total_amount))
+            except ValueError:
+                flash("To‘langan summani to‘g‘ri kiriting", "danger")
+                return redirect(url_for("sales"))
+        elif payment_method in {"Qarz", "Aralash"}:
+            paid_amount = 0
+        else:
+            paid_amount = total_amount
+
+        customer_name = (request.form.get("customer_name") or "").strip() or None
+        customer_phone = (request.form.get("customer_phone") or "").strip() or None
+        due_date = parse_date(request.form.get("due_date"))
+
+        sale = Sale(
+            company_id=cid,
+            sale_no=next_no("ST", Sale),
+            product_id=p.id,
+            quantity=quantity,
+            sale_price=sale_price,
+            cost_price=float(p.cost_price or 0),
+            customer_name=customer_name,
+            customer_phone=customer_phone,
+            payment_method=payment_method,
+            paid_amount=paid_amount,
+            due_date=due_date,
+            vehicle_model=(request.form.get("vehicle_model") or "").strip() or None,
+            vehicle_plate=(request.form.get("vehicle_plate") or "").strip().upper() or None,
+            driver_name=(request.form.get("driver_name") or "").strip() or None,
+            note=(request.form.get("note") or "").strip() or None,
+            created_by_id=current_user.id,
+        )
+
+        p.quantity -= quantity
+        if float(p.sale_price or 0) <= 0:
+            p.sale_price = sale_price
+
+        db.session.add(sale)
+        db.session.flush()
+        movement = StockMovement(
+            company_id=cid,
+            movement_no=next_no("ST", StockMovement),
+            movement_type="SALE",
+            product_id=p.id,
+            quantity=quantity,
+            unit_price=sale_price,
+            supplier_or_destination=customer_name,
+            vehicle_model=sale.vehicle_model,
+            vehicle_plate=sale.vehicle_plate,
+            driver_name=sale.driver_name,
+            given_by=current_user.full_name,
+            received_by=customer_name,
+            order_no=sale.sale_no,
+            note=f"Sotuv: {payment_method}. To‘landi: {paid_amount:.0f}. Qarz: {sale.debt_amount:.0f}. " + (sale.note or ""),
+            created_by_id=current_user.id,
+        )
+        db.session.add(movement)
+        audit("CREATE", "Sale", sale.id, f"{p.name}: {quantity} {p.unit}, jami {total_amount:.0f}, foyda {sale.profit_amount:.0f}")
+        db.session.commit()
+        flash(f"Sotuv saqlandi. Jami: {money(total_amount)} so‘m. Foyda: {money(sale.profit_amount)} so‘m", "success")
+        return redirect(url_for("sales"))
+
+    rows = Sale.query.filter_by(company_id=cid, cancelled=False).order_by(Sale.created_at.desc()).limit(200).all()
+    sales_total = sum(x.total_amount for x in rows)
+    profit_total = sum(x.profit_amount for x in rows)
+    debt_total = sum(x.debt_amount for x in rows)
+    return render_template(
+        "sales.html",
+        products=products_rows,
+        rows=rows,
+        sales_total=sales_total,
+        profit_total=profit_total,
+        debt_total=debt_total,
+    )
+
+
 @app.route("/movements")
 @company_required
 def movements():
@@ -1508,7 +1636,11 @@ def finance():
         return redirect(url_for("finance"))
     revenues = Revenue.query.filter_by(company_id=cid).order_by(Revenue.created_at.desc()).limit(100).all()
     expenses = Expense.query.filter_by(company_id=cid).order_by(Expense.created_at.desc()).limit(100).all()
-    return render_template("finance.html", revenues=revenues, expenses=expenses)
+    sales_rows = Sale.query.filter_by(company_id=cid, cancelled=False).all()
+    sales_revenue = sum(x.total_amount for x in sales_rows)
+    sales_profit = sum(x.profit_amount for x in sales_rows)
+    sales_debt = sum(x.debt_amount for x in sales_rows)
+    return render_template("finance.html", revenues=revenues, expenses=expenses, sales_revenue=sales_revenue, sales_profit=sales_profit, sales_debt=sales_debt)
 
 
 @app.route("/employees", methods=["GET", "POST"])
@@ -1639,14 +1771,25 @@ def reports():
     cid = current_company_id()
     products_rows = Product.query.filter_by(company_id=cid).all()
     inventory_cost = sum(float(p.quantity or 0) * float(p.cost_price or 0) for p in products_rows)
-    total_revenue = float(db.session.query(db.func.coalesce(db.func.sum(Revenue.amount), 0)).filter(Revenue.company_id == cid).scalar() or 0)
+    manual_revenue = float(db.session.query(db.func.coalesce(db.func.sum(Revenue.amount), 0)).filter(Revenue.company_id == cid).scalar() or 0)
     total_expense = float(db.session.query(db.func.coalesce(db.func.sum(Expense.amount), 0)).filter(Expense.company_id == cid).scalar() or 0)
+    sales_rows = Sale.query.filter_by(company_id=cid, cancelled=False).all()
+    sales_revenue = sum(x.total_amount for x in sales_rows)
+    sales_cost = sum(x.cost_amount for x in sales_rows)
+    sales_profit = sales_revenue - sales_cost
+    sales_debt = sum(x.debt_amount for x in sales_rows)
+    total_revenue = manual_revenue + sales_revenue
+    net_profit = manual_revenue + sales_profit - total_expense
     low_count = sum(1 for p in products_rows if p.quantity <= p.min_quantity)
     movement_count = StockMovement.query.filter_by(company_id=cid, cancelled=False).count()
     return render_template(
         "reports.html",
         total_revenue=total_revenue,
         total_expense=total_expense,
+        net_profit=net_profit,
+        sales_revenue=sales_revenue,
+        sales_profit=sales_profit,
+        sales_debt=sales_debt,
         product_count=len(products_rows),
         inventory_cost=inventory_cost,
         low_count=low_count,
@@ -1664,7 +1807,7 @@ def settings_view():
 @app.cli.command("init-db")
 def init_db():
     seed_defaults()
-    print("Ombor360 v8 baza tayyor.")
+    print("Ombor360 v14 baza tayyor.")
     print("Super Admin: SUPERADMIN_USERNAME / SUPERADMIN_PASSWORD (.env orqali)")
 
 

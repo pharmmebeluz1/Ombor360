@@ -72,7 +72,7 @@
     <div class="modern-card h-100">
       <h5 class="fw-bold mb-3"><i class="bi bi-clock-history text-primary"></i> Oxirgi ombor harakatlari</h5>
       <div class="table-responsive"><table class="table table-modern align-middle mb-0"><thead><tr><th>Vaqt</th><th>Turi</th><th>Mahsulot</th><th>Miqdor</th><th>Mas’ul</th></tr></thead><tbody>
-      {% for m in recent_movements %}<tr><td>{{ m.created_at|localdt }}</td><td><span class="badge {% if m.movement_type=='OUT' %}text-bg-primary{% else %}text-bg-success{% endif %}">{{ m.movement_type }}</span></td><td>{{ m.product.name if m.product else '—' }}</td><td>{{ m.quantity|qty }}</td><td>{{ m.created_by.full_name if m.created_by else '—' }}</td></tr>
+      {% for m in recent_movements %}<tr><td>{{ m.created_at|localdt }}</td><td><span class="badge {% if m.movement_type=='OUT' %}text-bg-primary{% else %}text-bg-success{% endif %}">{% if m.movement_type=='IN' %}Kirim{% elif m.movement_type=='OUT' %}Chiqim{% elif m.movement_type=='SALE' %}Sotuv{% else %}{{ m.movement_type }}{% endif %}</span></td><td>{{ m.product.name if m.product else '—' }}</td><td>{{ m.quantity|qty }}</td><td>{{ m.created_by.full_name if m.created_by else '—' }}</td></tr>
       {% else %}<tr><td colspan="5" class="text-center py-4 text-secondary">Harakat yo‘q</td></tr>{% endfor %}
       </tbody></table></div>
     </div>

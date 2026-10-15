@@ -1,0 +1,10 @@
+Ombor360° v14 — Sotuv bo‘limi
+
+- Alohida Sotuv bo‘limi qo‘shildi.
+- Sotuv ombor qoldig‘idan avtomatik ayriladi.
+- Jami summa = miqdor × sotuv narxi. Og‘irlik narxga qayta ko‘paytirilmaydi.
+- Tannarx va sotuv foydasi avtomatik hisoblanadi.
+- Naqd/Karta/Click-Payme/Qarz/Aralash to‘lovlari.
+- To‘langan summa va qolgan qarzdorlik.
+- Mijoz, mashina, davlat raqami, haydovchi va qarz muddati.
+- Dashboard, Moliya va Hisobotlarda sotuv ko‘rsatkichlari.

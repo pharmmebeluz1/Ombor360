@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% block title %}Sotuv — Ombor360°{% endblock %}
+{% block extra_head %}
+<style>
+.sale-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:16px}.sale-summary .modern-card{padding:16px}.sale-value{font-size:24px;font-weight:800;color:#0f172a}.scanner-feedback.success{color:#087443}.scanner-feedback.error{color:#b42318}.plate-input{text-transform:uppercase;font-weight:700;letter-spacing:1.5px}@media(max-width:768px){.sale-summary{grid-template-columns:1fr}.sale-value{font-size:20px}}
+</style>
+{% endblock %}
+{% block content %}
+<h1 class="page-title">Sotuv</h1>
+<div class="sale-summary">
+  <div class="modern-card"><div class="text-secondary small">Jami sotuv</div><div class="sale-value">{{ sales_total|money }} so‘m</div></div>
+  <div class="modern-card"><div class="text-secondary small">Sotuv foydasi</div><div class="sale-value text-success">{{ profit_total|money }} so‘m</div></div>
+  <div class="modern-card"><div class="text-secondary small">Qolgan qarzdorlik</div><div class="sale-value text-danger">{{ debt_total|money }} so‘m</div></div>
+</div>
+
+<div class="scanner-card mb-3">
+  <div class="scanner-icon"><i class="bi bi-upc-scan"></i></div>
+  <div class="scanner-main">
+    <div class="scanner-title">Barcode / QR orqali mahsulot tanlash</div>
+    <div class="scanner-sub">Kod urilganda mahsulot avtomatik tanlanadi.</div>
+    <div class="scanner-row"><input id="barcodeScanner" class="form-control scanner-input" autocomplete="off" placeholder="Barcode yoki SKU ni skaner qiling..."><button class="btn btn-outline-success" type="button" id="scanFindBtn"><i class="bi bi-search me-1"></i>Topish</button></div>
+    <div id="scanFeedback" class="scanner-feedback"></div>
+  </div>
+</div>
+
+<div class="modern-card mb-3">
+  <form method="post" class="row g-3" id="saleForm">
+    <div class="col-md-5"><label class="form-label">Mahsulot</label><select name="product_id" id="productSelect" class="form-select" required>{% for p in products %}<option value="{{p.id}}" data-sku="{{p.sku or ''}}" data-unit="{{p.unit}}" data-qty="{{p.free_quantity|qty}}" data-cost="{{p.cost_price}}" data-sale="{{p.sale_price}}" data-weight="{{p.weight_kg}}">{{p.name}} — {{p.free_quantity|qty}} {{p.unit}}</option>{% endfor %}</select><div id="productMeta" class="form-text"></div></div>
+    <div class="col-md-2"><label class="form-label">Miqdor</label><input name="quantity" id="quantityInput" type="number" step="0.01" min="0.01" class="form-control" required></div>
+    <div class="col-md-2"><label class="form-label">Sotuv narxi</label><input name="sale_price" id="salePriceInput" type="number" step="0.01" min="0" class="form-control" required></div>
+    <div class="col-md-3"><label class="form-label">Jami summa</label><input id="totalPreview" class="form-control fw-bold" readonly value="0"></div>
+    <div class="col-12"><div class="alert alert-light border mb-0 py-2"><i class="bi bi-info-circle me-1"></i>Narx <strong>tanlangan birlikka</strong> hisoblanadi. Masalan 1 qop 50 kg bo‘lsa, 280 000 so‘m — 1 qop narxi. 50 kg narxga qayta ko‘paytirilmaydi.</div></div>
+    <div class="col-md-4"><label class="form-label">Mijoz nomi</label><input name="customer_name" class="form-control" placeholder="Masalan: Akmal Savdo"></div>
+    <div class="col-md-3"><label class="form-label">Telefon</label><input name="customer_phone" class="form-control" placeholder="+998..."></div>
+    <div class="col-md-2"><label class="form-label">To‘lov turi</label><select name="payment_method" id="paymentMethod" class="form-select"><option>Naqd</option><option>Karta</option><option>Click/Payme</option><option>Qarz</option><option>Aralash</option></select></div>
+    <div class="col-md-3"><label class="form-label">To‘langan summa</label><input name="paid_amount" id="paidAmount" type="number" step="0.01" min="0" class="form-control" placeholder="Bo‘sh = to‘liq"></div>
+    <div class="col-md-3"><label class="form-label">Qarz muddati</label><input name="due_date" type="date" class="form-control"></div>
+    <div class="col-md-3"><label class="form-label">Mashina</label><input name="vehicle_model" class="form-control"></div>
+    <div class="col-md-3"><label class="form-label">Davlat raqami</label><input name="vehicle_plate" class="form-control plate-input" placeholder="01 A 123 BC"></div>
+    <div class="col-md-3"><label class="form-label">Haydovchi</label><input name="driver_name" class="form-control"></div>
+    <div class="col-12"><label class="form-label">Izoh</label><textarea name="note" class="form-control" rows="2"></textarea></div>
+    <div class="col-12"><button class="btn btn-success px-4"><i class="bi bi-cart-check-fill me-1"></i>Sotuvni saqlash</button></div>
+  </form>
+</div>
+
+<div class="modern-card table-responsive">
+  <div class="d-flex align-items-center justify-content-between mb-3"><h5 class="fw-bold mb-0">So‘nggi sotuvlar</h5><span class="text-secondary small">{{ rows|length }} ta yozuv</span></div>
+  <table class="table table-modern align-middle"><thead><tr><th>Sana</th><th>№</th><th>Mijoz</th><th>Mahsulot</th><th>Miqdor</th><th>Jami</th><th>Tannarx</th><th>Foyda</th><th>To‘landi</th><th>Qarz</th></tr></thead><tbody>
+  {% for s in rows %}<tr><td>{{s.created_at|localdt}}</td><td>{{s.sale_no}}</td><td>{{s.customer_name or '—'}}</td><td class="fw-semibold">{{s.product.name}}</td><td>{{s.quantity|qty}} {{s.product.unit}}</td><td>{{s.total_amount|money}}</td><td>{{s.cost_amount|money}}</td><td class="fw-bold {% if s.profit_amount >= 0 %}text-success{% else %}text-danger{% endif %}">{{s.profit_amount|money}}</td><td>{{s.paid_amount|money}}</td><td>{% if s.debt_amount > 0 %}<span class="badge text-bg-danger">{{s.debt_amount|money}}</span>{% else %}<span class="badge text-bg-success">0</span>{% endif %}</td></tr>{% else %}<tr><td colspan="10"><div class="empty-state">Hozircha sotuv yo‘q.</div></td></tr>{% endfor %}
+  </tbody></table>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function(){
+ const scanner=document.getElementById('barcodeScanner'), sel=document.getElementById('productSelect'), qty=document.getElementById('quantityInput'), price=document.getElementById('salePriceInput'), total=document.getElementById('totalPreview'), meta=document.getElementById('productMeta'), feedback=document.getElementById('scanFeedback'), findBtn=document.getElementById('scanFindBtn'), payment=document.getElementById('paymentMethod'), paid=document.getElementById('paidAmount');
+ const norm=v=>(v||'').trim().toLowerCase();
+ function money(v){return new Intl.NumberFormat('uz-UZ').format(Number(v||0))+' so‘m'}
+ function update(){const o=sel.options[sel.selectedIndex]; if(!o)return; if(!price.value)price.value=o.dataset.sale||0; const weight=Number(o.dataset.weight||0); meta.textContent=`Qoldiq: ${o.dataset.qty||0} ${o.dataset.unit||''} • Tannarx: ${money(o.dataset.cost)}${weight?` • 1 birlik og‘irligi: ${weight} kg`:''}`; total.value=money(Number(qty.value||0)*Number(price.value||0));}
+ function find(){const code=norm(scanner.value); if(!code)return; let found=-1; for(let i=0;i<sel.options.length;i++){if(norm(sel.options[i].dataset.sku)===code){found=i;break}} if(found>=0){sel.selectedIndex=found; price.value=sel.options[found].dataset.sale||0; feedback.className='scanner-feedback success'; feedback.textContent=sel.options[found].text.split(' — ')[0]+' topildi'; scanner.value=''; update(); qty.focus();}else{feedback.className='scanner-feedback error'; feedback.textContent='Bu kod bilan mahsulot topilmadi'; scanner.select();}}
+ scanner.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();find()}}); findBtn.addEventListener('click',find); sel.addEventListener('change',()=>{price.value='';update()}); qty.addEventListener('input',update); price.addEventListener('input',update); payment.addEventListener('change',()=>{if(['Qarz','Aralash'].includes(payment.value)){paid.value=''}else{paid.value=''}}); update();
+})();
+</script>
+{% endblock %}
