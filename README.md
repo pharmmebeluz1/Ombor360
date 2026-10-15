@@ -92,3 +92,6 @@ PostgreSQL uchun `psycopg[binary]==3.3.2` ishlatiladi.
 - Inventarizatsiyada real qoldiq sanaladi va farq Audit jurnaliga yoziladi.
 - Telefon brauzeri qo‘llasa, kamera orqali QR/barcode skanerlash ham mavjud.
 - Xodim panelida narx va moliyaviy KPIlar ko‘rsatilmaydi.
+
+## v12 — Telefon va kompyuterga o‘rnatish
+Ombor360° endi PWA sifatida o‘rnatiladi. Android/Chrome’da “O‘rnatish” tugmasi orqali, iPhone’da Safari → Share → Add to Home Screen orqali, Windows/Chrome’da esa install tugmasi orqali alohida dastur ko‘rinishida ishlaydi.

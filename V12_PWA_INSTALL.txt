@@ -1,0 +1,12 @@
+OMBOR360° v12 — TELEFON VA KOMPYUTERGA O‘RNATISH (PWA)
+
+Yangi imkoniyatlar:
+- Android telefonda Ombor360°ni ilova kabi o‘rnatish.
+- iPhone/iPad uchun “Add to Home Screen” yo‘riqnomasi.
+- Windows/Chrome’da Ombor360°ni alohida dastur oynasi sifatida o‘rnatish.
+- O‘rnatilganda bosh ekran / ish stolida Ombor360° ikonka chiqadi.
+- Serverdagi yangilanishlar foydalanuvchida qayta installer yuklamasdan ko‘rinadi.
+- Xodim paneli, rahbar paneli va Super Admin rollari o‘z holicha saqlandi.
+
+GitHub commit izohi:
+Telefon va kompyuterga o‘rnatish funksiyasi qo‘shildi
