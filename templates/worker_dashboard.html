@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% block title %}Xodim paneli — Ombor360°{% endblock %}
+{% block extra_head %}
+<style>
+.worker-hero{background:linear-gradient(135deg,#06443a,#0aa45f);color:#fff;border-radius:20px;padding:20px;box-shadow:0 16px 36px rgba(6,68,58,.18)}
+.worker-welcome{display:flex;align-items:center;gap:13px}.worker-avatar{width:50px;height:50px;border-radius:16px;background:rgba(255,255,255,.16);display:grid;place-items:center;font-size:24px}
+.worker-hero h1{font-size:22px;font-weight:900;margin:0}.worker-hero p{margin:3px 0 0;opacity:.86;font-size:13px}
+.worker-scan-card{background:#fff;border:1px solid #dfe9e5;border-radius:20px;padding:20px;box-shadow:var(--shadow)}
+.worker-scan-icon{width:68px;height:68px;border-radius:20px;margin:0 auto 12px;display:grid;place-items:center;background:#e4f9ed;color:#078a50;font-size:34px}
+.worker-code{height:54px;border:2px solid #b9e5cb;border-radius:14px;text-align:center;font-size:17px;font-weight:700}.worker-code:focus{border-color:#0aa45f;box-shadow:0 0 0 .2rem rgba(10,164,95,.13)}
+.worker-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.worker-stat{background:#fff;border:1px solid #e6edf0;border-radius:16px;padding:14px;text-align:center;box-shadow:var(--shadow)}.worker-stat i{font-size:22px}.worker-stat strong{display:block;font-size:22px;margin-top:4px}.worker-stat span{font-size:11px;color:#718096}
+.worker-quick{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.worker-q{display:flex;align-items:center;gap:10px;padding:14px;border-radius:15px;text-decoration:none;font-weight:800;border:1px solid #e4ebef;background:#fff;color:#1f3447}.worker-q i{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-size:18px}.worker-q.green i{background:#dcf8e7;color:#078a50}.worker-q.blue i{background:#e4f0ff;color:#1675d1}.worker-q.orange i{background:#fff0df;color:#d97608}.worker-q.purple i{background:#efe7ff;color:#6c43d9}
+.worker-table td,.worker-table th{font-size:12px;vertical-align:middle}
+.camera-box{display:none;margin-top:12px;border-radius:14px;overflow:hidden;background:#0f172a}.camera-box video{width:100%;max-height:320px;object-fit:cover;display:block}.camera-note{font-size:11px;color:#708097;margin-top:7px;text-align:center}
+@media(max-width:620px){.worker-hero{padding:16px}.worker-stats{grid-template-columns:1fr 1fr}.worker-stat:last-child{grid-column:1/-1}.worker-quick{grid-template-columns:1fr}.worker-scan-card{padding:16px}.worker-hero h1{font-size:19px}}
+</style>
+{% endblock %}
+{% block content %}
+<div class="worker-hero mb-3">
+  <div class="worker-welcome">
+    <div class="worker-avatar"><i class="bi bi-person-badge-fill"></i></div>
+    <div><h1>Xodim paneli</h1><p>{{ current_user.full_name }} • {{ active_company.name if active_company else '' }}</p></div>
+  </div>
+</div>
+
+<div class="worker-scan-card mb-3">
+  <div class="text-center">
+    <div class="worker-scan-icon"><i class="bi bi-upc-scan"></i></div>
+    <h2 class="h5 fw-bold mb-1">Mahsulotni skaner qiling</h2>
+    <p class="text-secondary small mb-3">Bluetooth/USB skaner kodni shu maydonga yozadi. Mahsulot qayerda turgani va qoldig‘i darrov chiqadi.</p>
+  </div>
+  <form method="post" id="workerScanForm">
+    <input id="workerCode" name="code" class="form-control worker-code" placeholder="QR / Barcode" autocomplete="off" autofocus required>
+    <button class="btn btn-success btn-lg w-100 mt-2"><i class="bi bi-search me-1"></i>Mahsulotni topish</button>
+  </form>
+  <button type="button" class="btn btn-outline-dark w-100 mt-2" id="cameraBtn"><i class="bi bi-camera-fill me-1"></i>Telefon kamerasi bilan skanerlash</button>
+  <div class="camera-box" id="cameraBox"><video id="cameraVideo" playsinline></video></div>
+  <div class="camera-note" id="cameraNote">Telefon kamerasi funksiyasi brauzer qo‘llasa ishlaydi. Bluetooth skaner esa klaviatura kabi to‘g‘ridan-to‘g‘ri ishlaydi.</div>
+</div>
+
+<div class="worker-stats mb-3">
+  <div class="worker-stat"><i class="bi bi-box-seam text-success"></i><strong>{{ total_products }}</strong><span>Mahsulot turi</span></div>
+  <div class="worker-stat"><i class="bi bi-exclamation-triangle-fill text-danger"></i><strong>{{ low_stock }}</strong><span>Kam qolgan</span></div>
+  <div class="worker-stat"><i class="bi bi-hourglass-split text-warning"></i><strong>{{ expiring }}</strong><span>30 kunda muddati yaqin</span></div>
+</div>
+
+<div class="worker-quick mb-3">
+  <a class="worker-q green" href="#" onclick="document.getElementById('workerCode').focus();return false;"><i class="bi bi-upc-scan"></i><span>Skanerga qaytish</span></a>
+  <a class="worker-q blue" href="{{ url_for('cash_requests') }}"><i class="bi bi-cash-coin"></i><span>Pul so‘rovi</span></a>
+  <a class="worker-q orange" href="{{ url_for('my_salary') }}"><i class="bi bi-piggy-bank-fill"></i><span>Mening oyligim</span></a>
+  <a class="worker-q purple" href="{{ url_for('movements') }}"><i class="bi bi-clock-history"></i><span>Harakatlar</span></a>
+</div>
+
+<div class="modern-card">
+  <div class="d-flex justify-content-between align-items-center mb-2"><h3 class="h6 fw-bold mb-0">Mening oxirgi operatsiyalarim</h3><span class="text-secondary small">oxirgi 8 ta</span></div>
+  <div class="table-responsive">
+    <table class="table table-modern worker-table mb-0">
+      <thead><tr><th>Vaqt</th><th>Turi</th><th>Mahsulot</th><th>Miqdor</th></tr></thead>
+      <tbody>
+      {% for m in recent %}
+        <tr><td>{{ m.created_at|localdt }}</td><td>{% if m.movement_type=='IN' %}<span class="status-badge status-in">Kirim</span>{% elif m.movement_type=='OUT' %}<span class="status-badge status-out">Chiqim</span>{% else %}<span class="status-badge status-pending">{{m.movement_type}}</span>{% endif %}</td><td>{{m.product.name}}</td><td>{{m.quantity|qty}} {{m.product.unit}}</td></tr>
+      {% else %}<tr><td colspan="4" class="text-center text-secondary py-4">Hozircha operatsiya yo‘q.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function(){
+  const code=document.getElementById('workerCode'), form=document.getElementById('workerScanForm');
+  if(code){code.focus(); code.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault(); if(code.value.trim()) form.submit();}});}
+  const btn=document.getElementById('cameraBtn'), box=document.getElementById('cameraBox'), video=document.getElementById('cameraVideo'), note=document.getElementById('cameraNote');
+  let stream=null, running=false;
+  async function stopCam(){running=false;if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}box.style.display='none';btn.innerHTML='<i class="bi bi-camera-fill me-1"></i>Telefon kamerasi bilan skanerlash';}
+  async function startCam(){
+    if(!('BarcodeDetector' in window)){note.textContent='Bu brauzer kamera orqali barcode o‘qishni qo‘llamaydi. Bluetooth skanerdan foydalaning.';return;}
+    try{
+      stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});video.srcObject=stream;await video.play();box.style.display='block';running=true;btn.innerHTML='<i class="bi bi-x-circle me-1"></i>Kamerani yopish';
+      const detector=new BarcodeDetector({formats:['qr_code','code_128','ean_13','ean_8','upc_a','upc_e']});
+      const scan=async()=>{if(!running)return;try{const bars=await detector.detect(video);if(bars.length){code.value=bars[0].rawValue;await stopCam();form.submit();return;}}catch(e){}requestAnimationFrame(scan);};scan();
+    }catch(e){note.textContent='Kamera ochilmadi. Brauzerda kamera ruxsatini tekshiring.';}
+  }
+  btn.addEventListener('click',()=>running?stopCam():startCam());
+})();
+</script>
+{% endblock %}

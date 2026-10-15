@@ -6,7 +6,7 @@
 {% endif %}
 <div class="label-toolbar no-print">
   <div>
-    <h1 class="page-title mb-1">{% if label_type=='qr' %}60×30 mm QR etiketkalar{% else %}60×30 mm Barcode etiketkalar{% endif %}</h1>
+    <h1 class="page-title mb-1">{% if label_type=='qr' %}A4 QR etiketkalar{% else %}A4 Barcode etiketkalar{% endif %}</h1>
     <div class="text-secondary small">{{ product_count }} ta mahsulot • {{ label_rows|length }} ta etiketka</div>
   </div>
   <div class="d-flex flex-wrap gap-2 align-items-end">
@@ -53,20 +53,12 @@
 <style>
 .label-toolbar{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:18px}
 .a4-sheet{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4mm;background:#fff;padding:6mm;border-radius:16px}
-.print-label{width:60mm;height:30mm;border:1px solid #222;border-radius:2mm;padding:1.2mm 1.5mm;overflow:hidden;background:#fff;color:#000;display:flex;flex-direction:column;justify-content:center;box-sizing:border-box}
-.label-brand{font-size:7px;font-weight:900;letter-spacing:.5px;color:#087a49}.label-name{font-size:10px;line-height:1.05;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:.4mm 0 .3mm}
-.barcode-img{display:block;width:100%;height:13mm;object-fit:contain;object-position:center;margin:0 auto}.barcode-fallback{font-family:monospace;font-size:11px;font-weight:700;text-align:center;padding:3mm 0;border:1px dashed #aaa}.label-meta{display:flex;justify-content:space-between;gap:3px;font-size:6.5px;line-height:1.05;margin-top:.25mm}
-.qr-label{width:60mm;height:30mm}.qr-main{display:flex;align-items:center;gap:1.5mm;min-height:20mm}.qr-img{width:19mm;height:19mm;object-fit:contain;flex:0 0 19mm}.qr-info{font-size:6.7px;line-height:1.2;overflow:hidden;min-width:0}.qr-info>div{margin-bottom:.2mm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-@page{size:60mm 30mm;margin:0}
-@media print{
-  html,body{width:60mm!important;height:30mm!important;margin:0!important;padding:0!important;background:#fff!important}
-  .sidebar,.topbar,.no-print,.flash-stack{display:none!important}
-  .main-wrap,.content{margin:0!important;padding:0!important;width:60mm!important;max-width:60mm!important}
-  .a4-sheet{display:block!important;width:60mm!important;margin:0!important;padding:0!important;border-radius:0!important;background:#fff!important}
-  .print-label{width:60mm!important;height:30mm!important;margin:0!important;padding:1.2mm 1.5mm!important;border:0!important;border-radius:0!important;box-shadow:none!important;break-after:page!important;page-break-after:always!important;break-inside:avoid!important;page-break-inside:avoid!important}
-  .print-label:last-child{break-after:auto!important;page-break-after:auto!important}
-  .qr-label{width:60mm!important;height:30mm!important}
-}
-@media(max-width:900px){.a4-sheet{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:600px){.a4-sheet{grid-template-columns:1fr}}
+.print-label{height:35mm;border:1px solid #222;border-radius:2mm;padding:2.2mm 2.5mm;overflow:hidden;background:#fff;color:#000;display:flex;flex-direction:column;justify-content:center}
+.label-brand{font-size:9px;font-weight:900;letter-spacing:.8px;color:#087a49}.label-name{font-size:13px;line-height:1.1;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:1mm 0 .5mm}
+.barcode-img{display:block;width:100%;height:16mm;object-fit:contain;object-position:center;margin:0 auto}.barcode-fallback{font-family:monospace;font-size:14px;font-weight:700;text-align:center;padding:5mm 0;border:1px dashed #aaa}.label-meta{display:flex;justify-content:space-between;gap:4px;font-size:7.5px;line-height:1.1;margin-top:.4mm}
+.qr-label{height:45mm}.qr-main{display:flex;align-items:center;gap:2.5mm;min-height:31mm}.qr-img{width:27mm;height:27mm;object-fit:contain;flex:0 0 27mm}.qr-info{font-size:8px;line-height:1.35;overflow:hidden}.qr-info>div{margin-bottom:.4mm}
+@page{size:A4 portrait;margin:8mm}
+@media print{body{background:#fff!important}.sidebar,.topbar,.no-print,.flash-stack{display:none!important}.main-wrap,.content{margin:0!important;padding:0!important;width:100%!important;max-width:none!important}.a4-sheet{display:grid!important;grid-template-columns:repeat(3,1fr)!important;gap:4mm!important;padding:0!important;border-radius:0!important}.print-label{break-inside:avoid;page-break-inside:avoid;box-shadow:none!important}.qr-label{height:45mm!important}}
+@media(max-width:900px){.a4-sheet{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:600px){.a4-sheet{grid-template-columns:1fr}.print-label{height:auto;min-height:45mm}}
 </style>
 {% endblock %}

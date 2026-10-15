@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block title %}Xodim amali — Ombor360°{% endblock %}
+{% block extra_head %}
+<style>
+.worker-action-wrap{max-width:650px;margin:0 auto}.worker-action-top{background:#fff;border:1px solid #e4ece8;border-radius:18px;padding:16px;box-shadow:var(--shadow)}.worker-action-top h1{font-size:21px;font-weight:900;margin:0}.worker-action-place{font-size:12px;color:#66768a;margin-top:5px}.worker-action-form{background:#fff;border:1px solid #e4ece8;border-radius:18px;padding:18px;box-shadow:var(--shadow)}.worker-action-form .form-control{min-height:52px;border-radius:13px;font-size:16px}.worker-action-form .form-label{font-weight:800;font-size:12px}.save-big{min-height:54px;border-radius:14px;font-weight:900;font-size:16px}
+</style>
+{% endblock %}
+{% block content %}
+<div class="worker-action-wrap">
+  <div class="worker-action-top mb-3">
+    <div class="d-flex align-items-start justify-content-between gap-2"><div><h1>{% if kind=='IN' %}Kirim qilish{% elif kind=='OUT' %}Chiqim qilish{% elif kind=='MOVE' %}Joyini o‘zgartirish{% else %}Inventarizatsiya{% endif %}</h1><div class="fw-bold mt-2">{{ product.name }}</div><div class="worker-action-place">Qoldiq: {{product.quantity|qty}} {{product.unit}} • {{product.warehouse or '-'}} / Qator {{product.row_code or '-'}} / Polka {{product.shelf_code or '-'}}</div></div><a class="btn btn-sm btn-outline-secondary" href="{{ url_for('worker_product',product_id=product.id) }}"><i class="bi bi-arrow-left"></i></a></div>
+  </div>
+
+  <form method="post" class="worker-action-form">
+    {% if kind in ['IN','OUT'] %}
+      <div class="mb-3"><label class="form-label">Miqdor ({{product.unit}})</label><input name="quantity" type="number" step="0.01" min="0.01" class="form-control" inputmode="decimal" autofocus required></div>
+      <div class="mb-3"><label class="form-label">{% if kind=='IN' %}Qayerdan keldi / Yetkazib beruvchi{% else %}Qayerga ketdi / Kimga berildi{% endif %}</label><input name="source_destination" class="form-control"></div>
+      <div class="mb-3"><label class="form-label">Izoh</label><textarea name="note" class="form-control" rows="2"></textarea></div>
+    {% elif kind=='MOVE' %}
+      <div class="mb-3"><label class="form-label">Ombor</label><input name="warehouse" class="form-control" value="{{product.warehouse or ''}}" required></div>
+      <div class="row g-2"><div class="col-6"><label class="form-label">Qator</label><input name="row_code" class="form-control text-uppercase" value="{{product.row_code or ''}}"></div><div class="col-6"><label class="form-label">Polka</label><input name="shelf_code" class="form-control text-uppercase" value="{{product.shelf_code or ''}}"></div></div>
+    {% else %}
+      <div class="mb-2 text-secondary small">Dasturdagi qoldiq: <strong>{{product.quantity|qty}} {{product.unit}}</strong></div>
+      <div class="mb-3"><label class="form-label">Sanalgan haqiqiy qoldiq</label><input name="actual_quantity" type="number" step="0.01" min="0" class="form-control" inputmode="decimal" value="{{product.quantity|qty}}" autofocus required></div>
+      <div class="alert alert-light border small">Saqlaganda dastur qoldig‘i shu raqamga tenglashtiriladi va farq Audit jurnalida yoziladi.</div>
+    {% endif %}
+    <button class="btn btn-success w-100 save-big"><i class="bi bi-check2-circle me-1"></i>Saqlash</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% block title %}Texnik yordam — {{ company.name }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
+  <div>
+    <a href="{{ url_for('superadmin_dashboard') }}" class="btn btn-sm btn-light border mb-2"><i class="bi bi-arrow-left"></i> Abonentlar</a>
+    <h1 class="page-title mb-1">Texnik yordam — {{ company.name }}</h1>
+    <div class="text-secondary">{{ company.code }}{% if company.phone %} • {{ company.phone }}{% endif %} • {{ company.plan_name }} • {{ company.monthly_fee|money }}$/oy</div>
+  </div>
+  <form method="post" action="{{ url_for('superadmin_company_support_enter', company_id=company.id) }}">
+    <button class="btn btn-warning fw-bold"><i class="bi bi-headset"></i> Kabinetni Support rejimida ochish</button>
+  </form>
+</div>
+
+<div class="alert alert-info border-0 shadow-sm">
+  <i class="bi bi-info-circle-fill me-2"></i>
+  Bu panel faqat <strong>Ombor360° ichidagi</strong> faoliyat, xatolar va audit tarixini ko‘rsatadi. Mijozning boshqa dasturlari yoki shaxsiy fayllari kuzatilmaydi.
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-xl-2 col-md-4 col-6"><div class="modern-card h-100"><div class="small text-secondary">Mahsulot</div><div class="kpi-number">{{ product_count }}</div></div></div>
+  <div class="col-xl-2 col-md-4 col-6"><div class="modern-card h-100"><div class="small text-secondary">Foydalanuvchi</div><div class="kpi-number">{{ users|length }}</div></div></div>
+  <div class="col-xl-2 col-md-4 col-6"><div class="modern-card h-100"><div class="small text-secondary">Hozir onlayn</div><div class="kpi-number text-success">{{ online_users|length }}</div></div></div>
+  <div class="col-xl-2 col-md-4 col-6"><div class="modern-card h-100"><div class="small text-secondary">Bugungi operatsiya</div><div class="kpi-number text-primary">{{ today_operations }}</div></div></div>
+  <div class="col-xl-2 col-md-4 col-6"><div class="modern-card h-100"><div class="small text-secondary">7 kundagi xato</div><div class="kpi-number {% if error_count_7d %}text-danger{% else %}text-success{% endif %}">{{ error_count_7d }}</div></div></div>
+  <div class="col-xl-2 col-md-4 col-6"><div class="modern-card h-100"><div class="small text-secondary">Abonent holati</div><div class="mt-2">{% if company.subscription_ok %}<span class="badge text-bg-success">Faol</span>{% else %}<span class="badge text-bg-danger">To‘xtagan</span>{% endif %}</div>{% if company.subscription_end %}<div class="small text-secondary mt-2">{{ company.subscription_end.strftime('%d.%m.%Y') }}</div>{% endif %}</div></div>
+</div>
+
+<div class="modern-card mb-3">
+  <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap mb-3"><h5 class="fw-bold mb-0"><i class="bi bi-people-fill text-success"></i> Foydalanuvchilar faolligi</h5><span class="small text-secondary">Onlayn holat taxminan 2 daqiqalik faollik bo‘yicha</span></div>
+  <div class="table-responsive">
+    <table class="table table-modern align-middle mb-0">
+      <thead><tr><th>Foydalanuvchi</th><th>Rol</th><th>Holat</th><th>Oxirgi kirish</th><th>Oxirgi faollik</th><th>Qurilma</th><th>Oxirgi bo‘lim</th></tr></thead>
+      <tbody>
+      {% for u in users %}
+        <tr>
+          <td><strong>{{ u.full_name }}</strong><div class="small text-secondary">{{ u.username }}</div></td>
+          <td>{{ u.role }}</td>
+          <td>{% if u in online_users %}<span class="badge text-bg-success">Onlayn</span>{% elif u.last_seen_at %}<span class="badge text-bg-secondary">Offline</span>{% else %}<span class="badge text-bg-light border">Hali kirmagan</span>{% endif %}</td>
+          <td>{{ u.last_login_at|localdt }}</td><td>{{ u.last_seen_at|localdt }}</td>
+          <td>{{ u.last_device or '—' }}</td><td>{{ u.last_page or '—' }}</td>
+        </tr>
+      {% else %}<tr><td colspan="7" class="text-center py-4 text-secondary">Foydalanuvchi yo‘q</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="modern-card mb-3">
+  <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap mb-3"><h5 class="fw-bold mb-0"><i class="bi bi-bug-fill text-danger"></i> Xatolar va texnik hodisalar</h5><span class="small text-secondary">Oxirgi 50 ta yozuv</span></div>
+  <div class="table-responsive">
+    <table class="table table-modern align-middle mb-0">
+      <thead><tr><th>Vaqt</th><th>Daraja</th><th>Turi</th><th>Xabar</th><th>Foydalanuvchi</th><th>Qurilma / sahifa</th></tr></thead>
+      <tbody>
+      {% for e in recent_events %}
+        <tr>
+          <td class="text-nowrap">{{ e.created_at|localdt }}</td>
+          <td>{% if e.level=='ERROR' %}<span class="badge text-bg-danger">XATO</span>{% elif e.level=='WARNING' %}<span class="badge text-bg-warning">OGOHLANTIRISH</span>{% else %}<span class="badge text-bg-info">INFO</span>{% endif %}</td>
+          <td><span class="badge text-bg-light border">{{ e.event_type }}</span></td>
+          <td style="min-width:280px"><strong>{{ e.message }}</strong>{% if e.details %}<details class="mt-1"><summary class="small text-primary">Texnik tafsilot</summary><pre class="support-trace">{{ e.details }}</pre></details>{% endif %}</td>
+          <td>{% set eu=event_user_map.get(e.user_id) %}{{ eu.full_name if eu else '—' }}</td>
+          <td><div>{{ e.device or '—' }}</div><div class="small text-secondary">{{ e.path or '—' }}</div></td>
+        </tr>
+      {% else %}<tr><td colspan="6" class="text-center py-5 text-success"><i class="bi bi-check-circle fs-4 d-block mb-2"></i>Texnik xato qayd etilmagan</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-xl-6">
+    <div class="modern-card h-100">
+      <h5 class="fw-bold mb-3"><i class="bi bi-clock-history text-primary"></i> Oxirgi ombor harakatlari</h5>
+      <div class="table-responsive"><table class="table table-modern align-middle mb-0"><thead><tr><th>Vaqt</th><th>Turi</th><th>Mahsulot</th><th>Miqdor</th><th>Mas’ul</th></tr></thead><tbody>
+      {% for m in recent_movements %}<tr><td>{{ m.created_at|localdt }}</td><td><span class="badge {% if m.movement_type=='OUT' %}text-bg-primary{% else %}text-bg-success{% endif %}">{{ m.movement_type }}</span></td><td>{{ m.product.name if m.product else '—' }}</td><td>{{ m.quantity|qty }}</td><td>{{ m.created_by.full_name if m.created_by else '—' }}</td></tr>
+      {% else %}<tr><td colspan="5" class="text-center py-4 text-secondary">Harakat yo‘q</td></tr>{% endfor %}
+      </tbody></table></div>
+    </div>
+  </div>
+  <div class="col-xl-6">
+    <div class="modern-card h-100">
+      <h5 class="fw-bold mb-3"><i class="bi bi-shield-check text-success"></i> Audit — kim nima o‘zgartirdi</h5>
+      <div class="table-responsive"><table class="table table-modern align-middle mb-0"><thead><tr><th>Vaqt</th><th>Foydalanuvchi</th><th>Amal</th><th>Obyekt</th><th>Tafsilot</th></tr></thead><tbody>
+      {% for a in recent_audits %}{% set au=user_map.get(a.user_id) %}<tr><td>{{ a.created_at|localdt }}</td><td>{{ au.full_name if au else ('ID ' ~ a.user_id) }}</td><td><span class="badge text-bg-light border">{{ a.action }}</span></td><td>{{ a.entity }}{% if a.entity_id %} #{{ a.entity_id }}{% endif %}</td><td>{{ a.details or '—' }}</td></tr>
+      {% else %}<tr><td colspan="5" class="text-center py-4 text-secondary">Audit yozuvi yo‘q</td></tr>{% endfor %}
+      </tbody></table></div>
+    </div>
+  </div>
+</div>
+{% endblock %}

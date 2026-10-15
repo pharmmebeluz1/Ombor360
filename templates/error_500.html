@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block title %}Server xatosi — Ombor360°{% endblock %}
+{% block content %}
+<div class="modern-card text-center py-5 mx-auto" style="max-width:680px">
+  <div class="display-5 text-danger mb-3"><i class="bi bi-exclamation-triangle-fill"></i></div>
+  <h2 class="fw-bold">Texnik xato qayd etildi</h2>
+  <p class="text-secondary">Sahifani yangilab ko‘ring. Xato davom etsa, texnik yordamga murojaat qiling. Super Admin panelida ushbu xatoning texnik yozuvi saqlanadi.</p>
+  {% if incident_id %}<div class="alert alert-light border">Xato raqami: <strong>#{{ incident_id }}</strong></div>{% endif %}
+  <a href="{{ url_for('dashboard') if active_company else url_for('login') }}" class="btn btn-success">Bosh sahifaga qaytish</a>
+</div>
+{% endblock %}

@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block title %}{{ product.name }} — Xodim paneli{% endblock %}
+{% block extra_head %}
+<style>
+.worker-product-head{background:linear-gradient(135deg,#06443a,#0aa45f);color:#fff;border-radius:20px;padding:18px;box-shadow:0 14px 30px rgba(6,68,58,.16)}
+.worker-product-name{font-size:24px;font-weight:900;margin:0}.worker-product-code{opacity:.82;font-size:12px;margin-top:4px}
+.location-big{background:linear-gradient(135deg,#eafff2,#f6fffa);border:2px solid #c6edd6;border-radius:20px;padding:20px;text-align:center}.location-big i{font-size:34px;color:#078a50}.location-route{font-size:22px;font-weight:900;color:#123b2b;margin-top:7px}.location-sub{color:#62756d;font-size:12px;margin-top:4px}
+.worker-data-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.worker-data{background:#fff;border:1px solid #e4ece8;border-radius:16px;padding:15px}.worker-data .label{font-size:11px;color:#758398;font-weight:700}.worker-data .value{font-size:22px;font-weight:900;margin-top:4px}.worker-data.full{grid-column:1/-1}
+.worker-actions{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.worker-action{min-height:64px;border-radius:15px;display:flex;align-items:center;justify-content:center;gap:9px;text-decoration:none;font-weight:900;font-size:15px}.wa-in{background:#0aa45f;color:#fff}.wa-out{background:#1683ff;color:#fff}.wa-move{background:#fff0dd;color:#b75b00;border:1px solid #ffd29f}.wa-inv{background:#efe7ff;color:#633bd1;border:1px solid #d9c9ff}
+.exp-ok{color:#078a50}.exp-warn{color:#b97900}.exp-bad{color:#dc2626}
+@media(max-width:520px){.worker-product-name{font-size:20px}.location-route{font-size:19px}.worker-data .value{font-size:19px}.worker-actions{grid-template-columns:1fr}}
+</style>
+{% endblock %}
+{% block content %}
+<div class="worker-product-head mb-3">
+  <div class="d-flex justify-content-between align-items-start gap-2">
+    <div><h1 class="worker-product-name">{{ product.name }}</h1><div class="worker-product-code"><i class="bi bi-upc-scan me-1"></i>{{ product.sku or 'Kod yo‘q' }} • {{ product.category }}</div></div>
+    <a class="btn btn-sm btn-light" href="{{ url_for('worker_dashboard') }}"><i class="bi bi-upc-scan"></i> Yangi skan</a>
+  </div>
+</div>
+
+<div class="location-big mb-3">
+  <i class="bi bi-geo-alt-fill"></i>
+  <div class="location-route">{{ product.warehouse or 'Ombor belgilanmagan' }} → Qator {{ product.row_code or '-' }} → Polka {{ product.shelf_code or '-' }}</div>
+  {% if product.location %}<div class="location-sub">{{ product.location }}</div>{% else %}<div class="location-sub">Mahsulot joylashuvi</div>{% endif %}
+</div>
+
+<div class="worker-data-grid mb-3">
+  <div class="worker-data"><div class="label">QOLDIQ</div><div class="value text-success">{{ product.quantity|qty }} <span class="fs-6">{{ product.unit }}</span></div><div class="small text-secondary">Erkin: {{ product.free_quantity|qty }} {{ product.unit }}</div></div>
+  <div class="worker-data"><div class="label">OG‘IRLIGI</div><div class="value">{% if product.weight_kg %}{{ product.weight_kg|qty }} <span class="fs-6">kg</span>{% else %}—{% endif %}</div></div>
+  <div class="worker-data full"><div class="label">YAROQLILIK MUDDATI</div>{% if product.expiry_date %}<div class="value {% if expiry_status in ['expired','danger'] %}exp-bad{% elif expiry_status=='warning' %}exp-warn{% else %}exp-ok{% endif %}">{{ product.expiry_date.strftime('%d.%m.%Y') }}</div><div class="small {% if expiry_status in ['expired','danger'] %}exp-bad{% elif expiry_status=='warning' %}exp-warn{% else %}exp-ok{% endif %}">{% if expiry_status=='expired' %}Muddati {{ -days_left }} kun oldin tugagan{% else %}{{ days_left }} kun qoldi{% endif %}</div>{% else %}<div class="value">Belgilanmagan</div>{% endif %}</div>
+</div>
+
+<div class="worker-actions mb-3">
+  <a class="worker-action wa-in" href="{{ url_for('worker_action',kind='IN',product_id=product.id) }}"><i class="bi bi-arrow-down-square-fill"></i>Kirim</a>
+  <a class="worker-action wa-out" href="{{ url_for('worker_action',kind='OUT',product_id=product.id) }}"><i class="bi bi-arrow-up-square-fill"></i>Chiqim</a>
+  <a class="worker-action wa-move" href="{{ url_for('worker_action',kind='MOVE',product_id=product.id) }}"><i class="bi bi-arrows-move"></i>Joyini o‘zgartirish</a>
+  <a class="worker-action wa-inv" href="{{ url_for('worker_action',kind='INVENTORY',product_id=product.id) }}"><i class="bi bi-clipboard2-check-fill"></i>Inventarizatsiya</a>
+</div>
+
+<a class="btn btn-outline-secondary w-100" href="{{ url_for('worker_dashboard') }}"><i class="bi bi-upc-scan me-1"></i>Keyingi mahsulotni skaner qilish</a>
+{% endblock %}

@@ -1,15 +1,17 @@
 import os
 import re
 import base64
+import traceback
 from io import BytesIO
 from datetime import date, datetime, timedelta, timezone
 from functools import wraps
 from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
-from flask import Flask, abort, flash, redirect, render_template, request, session, url_for
+from flask import Flask, abort, flash, redirect, render_template, request, session, url_for, has_request_context
 from flask_login import LoginManager, current_user, login_required, login_user, logout_user
 from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.exceptions import HTTPException
 from barcode import Code128
 from barcode.writer import SVGWriter
 import qrcode
@@ -26,6 +28,7 @@ from models import (
     Product,
     Revenue,
     StockMovement,
+    SupportEvent,
     User,
     db,
 )
@@ -134,6 +137,8 @@ def audit(action, entity, entity_id=None, details=None):
     cid = current_company_id()
     if not cid:
         return
+    if current_user.is_authenticated and current_user.role == "superadmin" and session.get("support_mode"):
+        details = f"[SUPPORT] {details or ''}".strip()
     db.session.add(AuditLog(
         company_id=cid,
         user_id=current_user.id,
@@ -142,6 +147,35 @@ def audit(action, entity, entity_id=None, details=None):
         entity_id=str(entity_id) if entity_id else None,
         details=details,
     ))
+
+
+def support_event(message, level="INFO", event_type="SYSTEM", company_id=None, user_id=None, details=None, path=None, device=None, commit=True):
+    """Texnik yordam jurnaliga xavfsiz yozuv qo‘shadi. Log yozishning o‘zi xato bersa asosiy ishni buzmaydi."""
+    try:
+        cid = company_id if company_id is not None else current_company_id()
+        uid = user_id
+        if uid is None and current_user.is_authenticated:
+            uid = current_user.id
+        row = SupportEvent(
+            company_id=cid,
+            user_id=uid,
+            level=(level or "INFO")[:20],
+            event_type=(event_type or "SYSTEM")[:40],
+            path=(path or (request.path if has_request_context() else None) or "")[:180] or None,
+            message=(str(message) or "Hodisa")[:500],
+            details=(str(details)[:12000] if details else None),
+            device=(device or (device_label(request.headers.get("User-Agent", "")) if has_request_context() else None)),
+        )
+        db.session.add(row)
+        if commit:
+            db.session.commit()
+        return row
+    except Exception:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        return None
 
 
 def next_no(prefix, model):
@@ -161,6 +195,76 @@ def money(v):
 def qty(v):
     value = float(v or 0)
     return f"{value:.2f}".rstrip("0").rstrip(".")
+
+
+def local_dt(v):
+    if not v:
+        return "—"
+    try:
+        if v.tzinfo is None:
+            v = v.replace(tzinfo=timezone.utc)
+        return v.astimezone(ZoneInfo("Asia/Tashkent")).strftime("%d.%m.%Y %H:%M")
+    except Exception:
+        return str(v)
+
+
+def device_label(user_agent):
+    ua = (user_agent or "").lower()
+    if "android" in ua:
+        os_name = "Android"
+    elif "iphone" in ua or "ipad" in ua:
+        os_name = "iPhone/iPad"
+    elif "windows" in ua:
+        os_name = "Windows"
+    elif "mac os" in ua or "macintosh" in ua:
+        os_name = "Mac"
+    elif "linux" in ua:
+        os_name = "Linux"
+    else:
+        os_name = "Qurilma"
+
+    if "edg/" in ua:
+        browser = "Edge"
+    elif "opr/" in ua or "opera" in ua:
+        browser = "Opera"
+    elif "yabrowser" in ua:
+        browser = "Yandex"
+    elif "chrome/" in ua:
+        browser = "Chrome"
+    elif "firefox/" in ua:
+        browser = "Firefox"
+    elif "safari/" in ua:
+        browser = "Safari"
+    else:
+        browser = "Brauzer"
+    return f"{os_name} • {browser}"
+
+
+def page_label(path):
+    path = (path or "/").strip()
+    if path == "/":
+        return "Bosh sahifa"
+    mapping = {
+        "/products": "Mahsulotlar",
+        "/worker": "Xodim paneli",
+        "/scan": "Skaner",
+        "/movements": "Harakatlar",
+        "/cash": "Pul so‘rovlari",
+        "/finance": "Moliya",
+        "/employees": "Xodimlar",
+        "/payroll": "Oyliklar",
+        "/reports": "Hisobotlar",
+        "/audit": "Audit",
+        "/settings": "Sozlamalar",
+    }
+    if path.startswith("/movement/IN"):
+        return "Kirim"
+    if path.startswith("/movement/OUT"):
+        return "Chiqim"
+    for prefix, label in mapping.items():
+        if path.startswith(prefix):
+            return label
+    return path[:80]
 
 
 def barcode_svg_data_uri(code):
@@ -225,6 +329,18 @@ def ensure_columns():
         for name, sql_type in product_additions.items():
             if name not in existing:
                 db.session.execute(text(f"ALTER TABLE {quote('product')} ADD COLUMN {quote(name)} {sql_type}"))
+
+    user_additions = {
+        "last_login_at": "DATETIME",
+        "last_seen_at": "DATETIME",
+        "last_device": "VARCHAR(180)",
+        "last_page": "VARCHAR(180)",
+    }
+    if "user" in tables:
+        existing = {c["name"] for c in inspector.get_columns("user")}
+        for name, sql_type in user_additions.items():
+            if name not in existing:
+                db.session.execute(text(f"ALTER TABLE {quote('user')} ADD COLUMN {quote(name)} {sql_type}"))
 
     tenant_tables = ["user", "product", "stock_movement", "cash_request", "expense", "revenue", "payroll_payment", "audit_log"]
     inspector = inspect(db.engine)
@@ -305,6 +421,7 @@ def seed_defaults():
 
 app.jinja_env.filters["money"] = money
 app.jinja_env.filters["qty"] = qty
+app.jinja_env.filters["localdt"] = local_dt
 
 with app.app_context():
     seed_defaults()
@@ -332,15 +449,43 @@ def enforce_company_subscription():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if current_user.is_authenticated:
-        return redirect(url_for("superadmin_dashboard" if current_user.role == "superadmin" else "dashboard"))
+        if current_user.role == "superadmin":
+            return redirect(url_for("superadmin_dashboard"))
+        if current_user.role in {"employee", "warehouse"}:
+            return redirect(url_for("worker_dashboard"))
+        return redirect(url_for("dashboard"))
     if request.method == "POST":
         user = User.query.filter_by(username=request.form["username"].strip()).first()
         if user and user.active and check_password_hash(user.password_hash, request.form["password"]):
             login_user(user)
+            now_utc = datetime.utcnow()
+            user.last_login_at = now_utc
+            user.last_seen_at = now_utc
+            user.last_device = device_label(request.headers.get("User-Agent", ""))
+            user.last_page = "Kirish"
+            db.session.commit()
+            support_event(
+                f"{user.username} tizimga kirdi",
+                event_type="LOGIN",
+                company_id=user.company_id,
+                user_id=user.id,
+            )
             if user.role == "superadmin":
                 session.pop("active_company_id", None)
+                session.pop("support_mode", None)
+                session.pop("support_company_id", None)
                 return redirect(url_for("superadmin_dashboard"))
+            if user.role in {"employee", "warehouse"}:
+                return redirect(url_for("worker_dashboard"))
             return redirect(url_for("dashboard"))
+        if user:
+            support_event(
+                f"Noto‘g‘ri parol bilan kirish urinishi: {user.username}",
+                level="WARNING",
+                event_type="LOGIN_FAILED",
+                company_id=user.company_id,
+                user_id=user.id,
+            )
         flash("Login yoki parol noto‘g‘ri", "danger")
     return render_template("login.html")
 
@@ -349,8 +494,74 @@ def login():
 @login_required
 def logout():
     session.pop("active_company_id", None)
+    session.pop("support_mode", None)
+    session.pop("support_company_id", None)
     logout_user()
     return redirect(url_for("login"))
+
+
+@app.post("/api/heartbeat")
+@login_required
+def heartbeat():
+    # Faqat abonent foydalanuvchisining Ombor360 ichidagi faolligi qayd etiladi.
+    if current_user.role != "superadmin":
+        current_user.last_seen_at = datetime.utcnow()
+        current_user.last_device = device_label(request.headers.get("User-Agent", ""))
+        current_user.last_page = page_label(request.form.get("path") or request.path)
+        db.session.commit()
+    return ("", 204)
+
+
+@app.after_request
+def capture_support_activity(response):
+    try:
+        if current_user.is_authenticated:
+            cid = current_company_id()
+            if response.status_code >= 400 and cid:
+                support_event(
+                    f"HTTP {response.status_code}: {request.method} {request.path}",
+                    level="WARNING" if response.status_code < 500 else "ERROR",
+                    event_type="HTTP_ERROR",
+                    company_id=cid,
+                    commit=True,
+                )
+            elif current_user.role == "superadmin" and session.get("support_mode") and request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+                support_event(
+                    f"Support rejimida amal: {request.method} {request.path}",
+                    event_type="SUPPORT_ACTION",
+                    company_id=cid,
+                    details=f"Endpoint: {request.endpoint or '-'} | Status: {response.status_code}",
+                    commit=True,
+                )
+    except Exception:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+    return response
+
+
+@app.errorhandler(Exception)
+def handle_unexpected_error(exc):
+    if isinstance(exc, HTTPException):
+        return exc
+    try:
+        db.session.rollback()
+    except Exception:
+        pass
+    trace = traceback.format_exc()
+    row = support_event(
+        f"{type(exc).__name__}: {str(exc) or 'Noma’lum server xatosi'}",
+        level="ERROR",
+        event_type="APP_ERROR",
+        details=trace,
+        commit=True,
+    )
+    app.logger.exception("Ombor360 unexpected error")
+    try:
+        return render_template("error_500.html", incident_id=(row.id if row else None)), 500
+    except Exception:
+        return "Ombor360 server xatosi. Texnik yordamga murojaat qiling.", 500
 
 
 @app.route("/subscription-expired")
@@ -397,6 +608,8 @@ def inject_layout_context():
         "active_company": company,
         "subscription_days_left": subscription_days_left,
         "nav_pending_cash": pending,
+        "support_mode": bool(current_user.is_authenticated and current_user.role == "superadmin" and session.get("support_mode") and company),
+        "support_company_id": session.get("support_company_id"),
     }
 
 
@@ -408,17 +621,46 @@ def superadmin_dashboard():
     companies = Company.query.order_by(Company.created_at.desc()).all()
     today = tashkent_now().date()
     company_rows = []
+    online_cutoff = datetime.utcnow() - timedelta(minutes=2)
+    day_start, day_end = tashkent_day_utc_range()
     for c in companies:
         admin_user = User.query.filter_by(company_id=c.id, role="admin").order_by(User.id).first()
-        users_count = User.query.filter_by(company_id=c.id, active=True).count()
+        users = User.query.filter_by(company_id=c.id, active=True).all()
+        users_count = len(users)
         products_count = Product.query.filter_by(company_id=c.id).count()
         days_left = (c.subscription_end - today).days if c.subscription_end else None
+        online_users = [u for u in users if u.last_seen_at and u.last_seen_at >= online_cutoff]
+        last_user = max((u for u in users if u.last_seen_at), key=lambda u: u.last_seen_at, default=None)
+        last_login_user = max((u for u in users if u.last_login_at), key=lambda u: u.last_login_at, default=None)
+        today_operations = StockMovement.query.filter(
+            StockMovement.company_id == c.id,
+            StockMovement.cancelled == False,
+            StockMovement.created_at >= day_start,
+            StockMovement.created_at < day_end,
+        ).count()
+        error_since = datetime.utcnow() - timedelta(days=7)
+        error_count = SupportEvent.query.filter(
+            SupportEvent.company_id == c.id,
+            SupportEvent.level == "ERROR",
+            SupportEvent.created_at >= error_since,
+        ).count()
+        last_error = SupportEvent.query.filter(
+            SupportEvent.company_id == c.id,
+            SupportEvent.level == "ERROR",
+        ).order_by(SupportEvent.created_at.desc()).first()
         company_rows.append({
             "company": c,
             "admin_user": admin_user,
             "users_count": users_count,
             "products_count": products_count,
             "days_left": days_left,
+            "online_users": online_users,
+            "online_count": len(online_users),
+            "last_user": last_user,
+            "last_login_user": last_login_user,
+            "today_operations": today_operations,
+            "error_count": error_count,
+            "last_error": last_error,
         })
     active_count = sum(1 for c in companies if c.active and (not c.subscription_end or c.subscription_end >= today))
     expired_count = len(companies) - active_count
@@ -430,8 +672,81 @@ def superadmin_dashboard():
         active_count=active_count,
         expired_count=expired_count,
         monthly_total=monthly_total,
+        total_online=sum(item["online_count"] for item in company_rows),
         today=today,
     )
+
+
+@app.get("/superadmin/company/<int:company_id>/support")
+@superadmin_required
+def superadmin_company_support(company_id):
+    company = db.session.get(Company, company_id) or abort(404)
+    users = User.query.filter_by(company_id=company.id).order_by(User.last_seen_at.desc().nullslast(), User.id.desc()).all()
+    online_cutoff = datetime.utcnow() - timedelta(minutes=2)
+    online_users = [u for u in users if u.active and u.last_seen_at and u.last_seen_at >= online_cutoff]
+    recent_movements = StockMovement.query.filter_by(company_id=company.id).order_by(StockMovement.created_at.desc()).limit(25).all()
+    recent_audits = AuditLog.query.filter_by(company_id=company.id).order_by(AuditLog.created_at.desc()).limit(40).all()
+    recent_events = SupportEvent.query.filter_by(company_id=company.id).order_by(SupportEvent.created_at.desc()).limit(50).all()
+    error_count_7d = SupportEvent.query.filter(
+        SupportEvent.company_id == company.id,
+        SupportEvent.level == "ERROR",
+        SupportEvent.created_at >= datetime.utcnow() - timedelta(days=7),
+    ).count()
+    day_start, day_end = tashkent_day_utc_range()
+    today_operations = StockMovement.query.filter(
+        StockMovement.company_id == company.id,
+        StockMovement.cancelled == False,
+        StockMovement.created_at >= day_start,
+        StockMovement.created_at < day_end,
+    ).count()
+    user_map = {u.id: u for u in User.query.filter(User.id.in_({a.user_id for a in recent_audits if a.user_id})).all()} if recent_audits else {}
+    event_user_ids = {e.user_id for e in recent_events if e.user_id}
+    event_user_map = {u.id: u for u in User.query.filter(User.id.in_(event_user_ids)).all()} if event_user_ids else {}
+    return render_template(
+        "support_company.html",
+        company=company,
+        users=users,
+        online_users=online_users,
+        recent_movements=recent_movements,
+        recent_audits=recent_audits,
+        recent_events=recent_events,
+        error_count_7d=error_count_7d,
+        today_operations=today_operations,
+        product_count=Product.query.filter_by(company_id=company.id).count(),
+        user_map=user_map,
+        event_user_map=event_user_map,
+    )
+
+
+@app.post("/superadmin/company/<int:company_id>/support/enter")
+@superadmin_required
+def superadmin_company_support_enter(company_id):
+    company = db.session.get(Company, company_id) or abort(404)
+    session["active_company_id"] = company.id
+    session["support_company_id"] = company.id
+    session["support_mode"] = True
+    support_event(
+        f"Super Admin texnik yordam rejimida kabinetga kirdi: {company.name}",
+        event_type="SUPPORT_ENTER",
+        company_id=company.id,
+    )
+    flash(f"Texnik yordam rejimi: {company.name}. Sizning amallaringiz jurnalga yoziladi.", "warning")
+    return redirect(url_for("dashboard"))
+
+
+@app.get("/superadmin/company/<int:company_id>/support/exit")
+@superadmin_required
+def superadmin_company_support_exit(company_id):
+    company = db.session.get(Company, company_id) or abort(404)
+    support_event(
+        f"Super Admin texnik yordam rejimidan chiqdi: {company.name}",
+        event_type="SUPPORT_EXIT",
+        company_id=company.id,
+    )
+    session.pop("active_company_id", None)
+    session.pop("support_mode", None)
+    session.pop("support_company_id", None)
+    return redirect(url_for("superadmin_company_support", company_id=company.id))
 
 
 @app.post("/superadmin/company/create")
@@ -482,16 +797,17 @@ def superadmin_company_create():
 @app.post("/superadmin/company/<int:company_id>/enter")
 @superadmin_required
 def superadmin_company_enter(company_id):
+    # Eski havolalar uchun: endi texnik yordam sahifasiga olib boradi.
     company = db.session.get(Company, company_id) or abort(404)
-    session["active_company_id"] = company.id
-    flash(f"{company.name} kabinetiga kirdingiz", "success")
-    return redirect(url_for("dashboard"))
+    return redirect(url_for("superadmin_company_support", company_id=company.id))
 
 
 @app.get("/superadmin/leave-company")
 @superadmin_required
 def superadmin_leave_company():
     session.pop("active_company_id", None)
+    session.pop("support_mode", None)
+    session.pop("support_company_id", None)
     return redirect(url_for("superadmin_dashboard"))
 
 
@@ -559,6 +875,8 @@ def superadmin_reset_password(company_id):
 @app.route("/")
 @company_required
 def dashboard():
+    if current_user.role in {"employee", "warehouse"}:
+        return redirect(url_for("worker_dashboard"))
     cid = current_company_id()
     products = Product.query.filter_by(company_id=cid).order_by(Product.name).all()
     inventory_cost = sum(float(p.quantity or 0) * float(p.cost_price or 0) for p in products)
@@ -663,6 +981,177 @@ def month_range(month_key):
     return start, end
 
 
+
+# ---------------- XODIM / OMBORCHI MOBIL PANELI ----------------
+
+def worker_required(fn):
+    @wraps(fn)
+    @login_required
+    def wrapper(*args, **kwargs):
+        if current_user.role == "superadmin":
+            if not current_company_id():
+                return redirect(url_for("superadmin_dashboard"))
+            return fn(*args, **kwargs)
+        if current_user.role not in {"employee", "warehouse"}:
+            abort(403)
+        return fn(*args, **kwargs)
+    return wrapper
+
+
+def product_expiry_info(product):
+    if not product.expiry_date:
+        return None, None
+    days = (product.expiry_date - tashkent_now().date()).days
+    if days < 0:
+        status = "expired"
+    elif days <= 7:
+        status = "danger"
+    elif days <= 30:
+        status = "warning"
+    else:
+        status = "ok"
+    return days, status
+
+
+@app.route("/worker", methods=["GET", "POST"])
+@worker_required
+def worker_dashboard():
+    cid = current_company_id()
+    code = (request.values.get("code") or "").strip()
+    if code:
+        product = Product.query.filter(
+            Product.company_id == cid,
+            db.func.lower(Product.sku) == code.lower(),
+        ).first()
+        if product:
+            return redirect(url_for("worker_product", product_id=product.id))
+        flash(f"{code} kodi bilan mahsulot topilmadi", "danger")
+        return redirect(url_for("worker_dashboard"))
+
+    recent = StockMovement.query.filter_by(
+        company_id=cid,
+        created_by_id=current_user.id,
+    ).order_by(StockMovement.created_at.desc()).limit(8).all()
+    total_products = Product.query.filter_by(company_id=cid).count()
+    low_stock = Product.query.filter(
+        Product.company_id == cid,
+        Product.quantity <= Product.min_quantity,
+    ).count()
+    expiring_limit = tashkent_now().date() + timedelta(days=30)
+    expiring = Product.query.filter(
+        Product.company_id == cid,
+        Product.expiry_date.isnot(None),
+        Product.expiry_date <= expiring_limit,
+    ).count()
+    return render_template(
+        "worker_dashboard.html",
+        recent=recent,
+        total_products=total_products,
+        low_stock=low_stock,
+        expiring=expiring,
+    )
+
+
+@app.route("/worker/product/<int:product_id>")
+@worker_required
+def worker_product(product_id):
+    product = tenant_get_or_404(Product, product_id)
+    days_left, expiry_status = product_expiry_info(product)
+    return render_template(
+        "worker_product.html",
+        product=product,
+        days_left=days_left,
+        expiry_status=expiry_status,
+    )
+
+
+@app.route("/worker/action/<kind>/<int:product_id>", methods=["GET", "POST"])
+@worker_required
+def worker_action(kind, product_id):
+    kind = kind.upper()
+    if kind not in {"IN", "OUT", "MOVE", "INVENTORY"}:
+        abort(404)
+    product = tenant_get_or_404(Product, product_id)
+    cid = current_company_id()
+
+    if request.method == "POST":
+        if kind in {"IN", "OUT"}:
+            try:
+                amount = float(request.form.get("quantity") or 0)
+            except ValueError:
+                amount = 0
+            if amount <= 0:
+                flash("Miqdor 0 dan katta bo‘lishi kerak", "danger")
+                return redirect(request.url)
+            if kind == "OUT" and amount > product.free_quantity:
+                flash(f"Yetarli qoldiq yo‘q. Erkin: {qty(product.free_quantity)} {product.unit}", "danger")
+                return redirect(request.url)
+            if kind == "IN":
+                product.quantity += amount
+            else:
+                product.quantity -= amount
+            row = StockMovement(
+                company_id=cid,
+                movement_no=next_no("KR" if kind == "IN" else "CH", StockMovement),
+                movement_type=kind,
+                product_id=product.id,
+                quantity=amount,
+                unit_price=product.cost_price if kind == "IN" else product.sale_price,
+                supplier_or_destination=request.form.get("source_destination") or None,
+                given_by=current_user.full_name if kind == "OUT" else None,
+                received_by=current_user.full_name if kind == "IN" else None,
+                note=request.form.get("note") or None,
+                created_by_id=current_user.id,
+            )
+            db.session.add(row)
+            db.session.flush()
+            audit("WORKER_" + kind, "StockMovement", row.id, f"{product.name}: {amount} {product.unit}")
+            db.session.commit()
+            flash("Operatsiya saqlandi", "success")
+
+        elif kind == "MOVE":
+            old_place = f"{product.warehouse or '-'} / {product.row_code or '-'} / {product.shelf_code or '-'}"
+            product.warehouse = (request.form.get("warehouse") or "").strip() or None
+            product.row_code = (request.form.get("row_code") or "").strip().upper() or None
+            product.shelf_code = (request.form.get("shelf_code") or "").strip().upper() or None
+            new_place = f"{product.warehouse or '-'} / {product.row_code or '-'} / {product.shelf_code or '-'}"
+            audit("MOVE_LOCATION", "Product", product.id, f"{product.name}: {old_place} -> {new_place}")
+            db.session.commit()
+            flash("Mahsulot joylashuvi yangilandi", "success")
+
+        elif kind == "INVENTORY":
+            try:
+                actual = float(request.form.get("actual_quantity") or 0)
+            except ValueError:
+                actual = -1
+            if actual < 0:
+                flash("Haqiqiy qoldiq 0 yoki undan katta bo‘lishi kerak", "danger")
+                return redirect(request.url)
+            before = float(product.quantity or 0)
+            diff = actual - before
+            product.quantity = actual
+            if abs(diff) > 0.000001:
+                row = StockMovement(
+                    company_id=cid,
+                    movement_no=next_no("INV", StockMovement),
+                    movement_type="ADJUST",
+                    product_id=product.id,
+                    quantity=abs(diff),
+                    unit_price=product.cost_price,
+                    supplier_or_destination="Inventarizatsiya",
+                    note=f"Sanoq: {qty(before)} -> {qty(actual)} {product.unit}; farq: {qty(diff)}",
+                    created_by_id=current_user.id,
+                )
+                db.session.add(row)
+                db.session.flush()
+                audit("INVENTORY", "StockMovement", row.id, row.note)
+            db.session.commit()
+            flash("Inventarizatsiya qoldig‘i saqlandi", "success")
+
+        return redirect(url_for("worker_product", product_id=product.id))
+
+    return render_template("worker_action.html", kind=kind, product=product)
+
 @app.route("/products", methods=["GET", "POST"])
 @role_required("admin", "manager", "warehouse")
 def products():
@@ -766,6 +1255,8 @@ def labels():
 @app.route("/scan", methods=["GET", "POST"])
 @company_required
 def scan_product():
+    if current_user.role in {"employee", "warehouse"}:
+        return redirect(url_for("worker_dashboard"))
     cid = current_company_id()
     code = (request.values.get("code") or "").strip()
     if code:
@@ -780,6 +1271,8 @@ def scan_product():
 @app.route("/product/<int:product_id>")
 @company_required
 def product_card(product_id):
+    if current_user.role in {"employee", "warehouse"}:
+        return redirect(url_for("worker_product", product_id=product_id))
     product = tenant_get_or_404(Product, product_id)
     days_left = None
     expiry_status = None

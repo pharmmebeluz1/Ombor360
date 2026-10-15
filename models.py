@@ -38,6 +38,10 @@ class User(UserMixin, db.Model):
     monthly_salary = db.Column(db.Float, nullable=False, default=0)
     telegram_chat_id = db.Column(db.String(64), nullable=True)
     active = db.Column(db.Boolean, default=True)
+    last_login_at = db.Column(db.DateTime, nullable=True)
+    last_seen_at = db.Column(db.DateTime, nullable=True)
+    last_device = db.Column(db.String(180), nullable=True)
+    last_page = db.Column(db.String(180), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     company = db.relationship("Company")
@@ -169,3 +173,19 @@ class AuditLog(db.Model):
     details = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     company = db.relationship("Company")
+
+
+class SupportEvent(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey("company.id"), nullable=True, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True, index=True)
+    level = db.Column(db.String(20), nullable=False, default="INFO")
+    event_type = db.Column(db.String(40), nullable=False, default="SYSTEM")
+    path = db.Column(db.String(180), nullable=True)
+    message = db.Column(db.String(500), nullable=False)
+    details = db.Column(db.Text, nullable=True)
+    device = db.Column(db.String(180), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+
+    company = db.relationship("Company")
+    user = db.relationship("User")

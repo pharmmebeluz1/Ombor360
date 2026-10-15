@@ -1,0 +1,12 @@
+Ombor360 v11 — Xodim mobil paneli
+
+Xodim / Omborchi:
+- telefon orqali alohida panelga kiradi
+- Bluetooth/USB skaner bilan mahsulotni topadi
+- ombor / qator / polkani ko‘radi
+- qoldiq va yaroqlilik muddatini ko‘radi
+- kirim va chiqim qiladi
+- mahsulot joyini o‘zgartiradi
+- inventarizatsiya qiladi
+
+Rahbar paneli va Super Admin tizimi saqlab qolingan.

@@ -6,4 +6,4 @@ python-telegram-bot==22.4
 gunicorn==23.0.0
 python-barcode==0.15.1
 qrcode==8.2
-psycopg-binary==3.3.2
+psycopg[binary]==3.3.2

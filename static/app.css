@@ -50,3 +50,21 @@ a{text-decoration:none}
 .company-chip i{font-size:19px;color:#07925c}.company-chip div{display:flex;flex-direction:column;line-height:1.15}.company-chip strong{font-size:12px;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.company-chip small{font-size:10px;color:#6b7280;margin-top:3px}
 .super-title{display:flex;align-items:center;gap:10px;color:#52615c;font-weight:700}
 @media(max-width:1200px){.company-chip{display:none}}
+
+/* v9 abonent activity monitoring */
+.live-dot,.offline-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:1px}
+.live-dot{background:#16a34a;box-shadow:0 0 0 4px rgba(22,163,74,.12)}
+.offline-dot{background:#94a3b8}
+.device-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 7px;border-radius:7px;background:#f1f5f9;color:#64748b;font-size:10px;font-weight:700;white-space:nowrap}
+
+/* v10 technical support */
+.support-mode-banner{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:14px;padding:12px 14px;border-radius:14px;background:linear-gradient(135deg,#8a5a00,#d08a00);color:#fff;box-shadow:0 10px 24px rgba(165,105,0,.18)}
+.support-mode-banner>div:first-child{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.support-mode-banner i{font-size:20px}.support-mode-banner strong{font-size:14px}.support-mode-banner span{font-size:12px;opacity:.92}
+.support-trace{margin:8px 0 0;max-width:620px;max-height:240px;overflow:auto;white-space:pre-wrap;background:#0f172a;color:#dbeafe;border-radius:9px;padding:10px;font-size:10px;line-height:1.45}
+
+/* v11 xodim mobil paneli */
+@media(max-width:620px){
+  body:has(.worker-hero) .topbar{height:60px}
+  body:has(.worker-hero) .app-title{font-size:19px}
+  body:has(.worker-hero) .content{padding-bottom:28px}
+}
