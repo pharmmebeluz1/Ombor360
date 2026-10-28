@@ -1,0 +1,12 @@
+Ombor360 v18 — Zarar ko‘rgan mahsulot moduli
+
+- Xodim telefon orqali mahsulotni tanlaydi, miqdor va zarar turini kiritadi.
+- Kamera/fayldan foto biriktiriladi.
+- Xabar rahbar panelida badge bilan ko‘rinadi.
+- Qarorlar: Sotilsin / Chegirma bilan / Sotilmasin (karantin) / Brak.
+- Xabar yuborilganda zarar ko‘rgan miqdor vaqtincha rezervlanadi, oddiy sotuvga tushmaydi.
+- Brak qilinsa qoldiqdan kamayadi.
+- Chegirma qarorida tavsiya narx hisoblanadi.
+- Audit tarixida kim yuborgani va kim qaror bergani saqlanadi.
+
+Eslatma: foto fayllari hozir server diskida saqlanadi. Render Free/ephemeral diskda deploy yoki restartdan keyin rasm fayllari yo‘qolishi mumkin. Pullik mijozlar uchun S3/R2/Cloudinary kabi doimiy fayl omboriga o‘tkazish tavsiya qilinadi.

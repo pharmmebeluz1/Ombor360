@@ -2,6 +2,7 @@ import os
 import re
 import base64
 import traceback
+import uuid
 from io import BytesIO
 from datetime import date, datetime, timedelta, timezone
 from functools import wraps
@@ -11,6 +12,7 @@ from dotenv import load_dotenv
 from flask import Flask, abort, flash, redirect, render_template, request, session, url_for, has_request_context, send_from_directory
 from flask_login import LoginManager, current_user, login_required, login_user, logout_user
 from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.utils import secure_filename
 from werkzeug.exceptions import HTTPException
 from barcode import Code128
 from barcode.writer import SVGWriter
@@ -36,6 +38,7 @@ from models import (
     Reservation,
     Shipment,
     InventoryCheck,
+    DamageReport,
     db,
 )
 
@@ -51,6 +54,10 @@ elif database_url.startswith("postgresql://") and "+psycopg" not in database_url
     database_url = database_url.replace("postgresql://", "postgresql+psycopg://", 1)
 app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024
+DAMAGE_UPLOAD_DIR = os.path.join(app.root_path, "uploads", "damage")
+os.makedirs(DAMAGE_UPLOAD_DIR, exist_ok=True)
+ALLOWED_DAMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
 
 db.init_app(app)
 login_manager = LoginManager(app)
@@ -615,6 +622,7 @@ def inject_layout_context():
     company = None
     effective_role = ""
     pending = 0
+    pending_damage = 0
     subscription_days_left = None
     try:
         if current_user.is_authenticated:
@@ -624,8 +632,10 @@ def inject_layout_context():
                 subscription_days_left = (company.subscription_end - now.date()).days
             if company:
                 pending = CashRequest.query.filter_by(company_id=company.id, status="PENDING").count()
+                pending_damage = DamageReport.query.filter_by(company_id=company.id, status="PENDING").count()
     except Exception:
         pending = 0
+        pending_damage = 0
     return {
         "today_text": now.strftime("%d.%m.%Y"),
         "weekday_text": weekdays[now.weekday()],
@@ -634,6 +644,7 @@ def inject_layout_context():
         "active_company": company,
         "subscription_days_left": subscription_days_left,
         "nav_pending_cash": pending,
+        "nav_pending_damage": pending_damage,
         "support_mode": bool(current_user.is_authenticated and current_user.role == "superadmin" and session.get("support_mode") and company),
         "support_company_id": session.get("support_company_id"),
     }
@@ -1983,6 +1994,138 @@ def purchase_list():
     cid=current_company_id()
     rows=Product.query.filter(Product.company_id==cid,Product.quantity<=Product.min_quantity).order_by(Product.name).all()
     return render_template("purchase_list.html",rows=rows)
+
+
+# ---------------- ZARAR KO'RGAN MAHSULOT v18 ----------------
+
+def _damage_ext_ok(filename):
+    return "." in (filename or "") and filename.rsplit(".", 1)[1].lower() in ALLOWED_DAMAGE_EXTENSIONS
+
+
+@app.route("/damage-photo/<path:filename>")
+@company_required
+def damage_photo(filename):
+    cid = current_company_id()
+    if not filename.startswith(f"{cid}_"):
+        abort(403)
+    return send_from_directory(DAMAGE_UPLOAD_DIR, filename)
+
+
+@app.route("/damages", methods=["GET", "POST"])
+@company_required
+def damage_reports():
+    cid = current_company_id()
+    if request.method == "POST":
+        if current_user.role not in {"employee", "warehouse", "admin", "manager", "superadmin"}:
+            abort(403)
+        try:
+            product_id = int(request.form.get("product_id") or 0)
+        except (TypeError, ValueError):
+            product_id = 0
+        product = tenant_get_or_404(Product, product_id)
+        try:
+            amount = float(request.form.get("quantity") or 1)
+        except (TypeError, ValueError):
+            amount = 1
+        if amount <= 0 or amount > product.free_quantity:
+            flash("Zarar ko‘rgan miqdor noto‘g‘ri yoki erkin qoldiq yetarli emas", "danger")
+            return redirect(url_for("damage_reports"))
+
+        photo = request.files.get("photo")
+        photo_filename = None
+        if photo and photo.filename:
+            if not _damage_ext_ok(photo.filename):
+                flash("Rasm formati JPG, PNG yoki WEBP bo‘lishi kerak", "danger")
+                return redirect(url_for("damage_reports"))
+            ext = secure_filename(photo.filename).rsplit(".", 1)[1].lower()
+            photo_filename = f"{cid}_{uuid.uuid4().hex}.{ext}"
+            photo.save(os.path.join(DAMAGE_UPLOAD_DIR, photo_filename))
+
+        row = DamageReport(
+            company_id=cid,
+            product_id=product.id,
+            quantity=amount,
+            damage_type=(request.form.get("damage_type") or "BOSHQA").upper(),
+            note=(request.form.get("note") or "").strip() or None,
+            photo_filename=photo_filename,
+            reported_by_id=current_user.id,
+        )
+        product.reserved_quantity = float(product.reserved_quantity or 0) + amount
+        db.session.add(row)
+        audit("CREATE", "DAMAGE_REPORT", details=f"{product.name}: {amount} {product.unit} — {row.damage_type}")
+        db.session.commit()
+        flash("Zarar ko‘rgan mahsulot rahbar ko‘rib chiqishi uchun yuborildi", "success")
+        return redirect(url_for("damage_reports"))
+
+    rows = DamageReport.query.filter_by(company_id=cid).order_by(DamageReport.created_at.desc()).all()
+    products = Product.query.filter_by(company_id=cid).order_by(Product.name).all()
+    return render_template("damages.html", rows=rows, products=products)
+
+
+@app.post("/damages/<int:report_id>/decision")
+@role_required("admin", "manager")
+def damage_decision(report_id):
+    row = tenant_get_or_404(DamageReport, report_id)
+    if row.status != "PENDING":
+        flash("Bu xabar bo‘yicha qaror allaqachon berilgan", "warning")
+        return redirect(url_for("damage_reports"))
+
+    decision = (request.form.get("decision") or "").upper()
+    if decision not in {"SELL", "DISCOUNT", "NO_SALE", "SCRAP"}:
+        flash("Qaror noto‘g‘ri", "danger")
+        return redirect(url_for("damage_reports"))
+
+    p = row.product
+    amount = float(row.quantity or 0)
+    try:
+        discount = max(0.0, min(float(request.form.get("discount_percent") or 0), 100.0))
+    except (TypeError, ValueError):
+        discount = 0.0
+    discounted_price = 0.0
+
+    if decision == "SELL":
+        p.reserved_quantity = max(float(p.reserved_quantity or 0) - amount, 0)
+        row.status = "APPROVED"
+    elif decision == "DISCOUNT":
+        p.reserved_quantity = max(float(p.reserved_quantity or 0) - amount, 0)
+        if discount <= 0:
+            discount = 10.0
+        discounted_price = float(p.sale_price or 0) * (1 - discount / 100.0)
+        row.status = "DISCOUNT"
+    elif decision == "NO_SALE":
+        row.status = "QUARANTINE"
+    elif decision == "SCRAP":
+        p.reserved_quantity = max(float(p.reserved_quantity or 0) - amount, 0)
+        p.quantity = max(float(p.quantity or 0) - amount, 0)
+        row.status = "SCRAPPED"
+
+    row.decision = decision
+    row.discount_percent = discount
+    row.discounted_price = discounted_price
+    row.decided_by_id = current_user.id
+    row.decided_at = datetime.utcnow()
+    audit("DECISION", "DAMAGE_REPORT", row.id, f"Qaror={decision}; chegirma={discount}%")
+    db.session.commit()
+    flash("Rahbar qarori saqlandi", "success")
+    return redirect(url_for("damage_reports"))
+
+
+@app.post("/damages/<int:report_id>/release")
+@role_required("admin", "manager")
+def damage_release(report_id):
+    row = tenant_get_or_404(DamageReport, report_id)
+    if row.status != "QUARANTINE":
+        flash("Faqat sotuvdan chiqarilgan mahsulotni qayta ochish mumkin", "warning")
+        return redirect(url_for("damage_reports"))
+    row.product.reserved_quantity = max(float(row.product.reserved_quantity or 0) - float(row.quantity or 0), 0)
+    row.status = "APPROVED"
+    row.decision = "SELL"
+    row.decided_by_id = current_user.id
+    row.decided_at = datetime.utcnow()
+    audit("UPDATE", "DAMAGE_REPORT", row.id, "Karantindan chiqarildi")
+    db.session.commit()
+    flash("Mahsulot qayta sotuvga chiqarildi", "success")
+    return redirect(url_for("damage_reports"))
 
 
 @app.route("/settings")

@@ -307,3 +307,26 @@ class InventoryCheck(db.Model):
     company = db.relationship("Company")
     product = db.relationship("Product")
     created_by = db.relationship("User")
+
+class DamageReport(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey("company.id"), nullable=False, index=True)
+    product_id = db.Column(db.Integer, db.ForeignKey("product.id"), nullable=False)
+    quantity = db.Column(db.Float, nullable=False, default=1)
+    damage_type = db.Column(db.String(40), nullable=False, default="BOSHQA")
+    note = db.Column(db.String(500), nullable=True)
+    photo_filename = db.Column(db.String(255), nullable=True)
+    status = db.Column(db.String(30), nullable=False, default="PENDING")
+    decision = db.Column(db.String(30), nullable=True)
+    discount_percent = db.Column(db.Float, nullable=False, default=0)
+    discounted_price = db.Column(db.Float, nullable=False, default=0)
+    reported_by_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    decided_by_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    decided_at = db.Column(db.DateTime, nullable=True)
+
+    company = db.relationship("Company")
+    product = db.relationship("Product")
+    reported_by = db.relationship("User", foreign_keys=[reported_by_id])
+    decided_by = db.relationship("User", foreign_keys=[decided_by_id])
+

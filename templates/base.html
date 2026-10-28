@@ -49,6 +49,7 @@
         <a class="side-link {% if request.endpoint=='movements' %}active{% endif %}" href="{{ url_for('movements') }}"><i class="bi bi-clipboard2-data-fill"></i><span>Harakatlar</span></a>
         <a class="side-link {% if request.endpoint=='alerts' %}active{% endif %}" href="{{ url_for('alerts') }}"><i class="bi bi-bell-fill"></i><span>Ogohlantirishlar</span></a>
         <a class="side-link {% if request.endpoint=='tasks' %}active{% endif %}" href="{{ url_for('tasks') }}"><i class="bi bi-check2-square"></i><span>Vazifalar</span></a>
+        <a class="side-link {% if request.endpoint in ['damage_reports','damage_decision','damage_release'] %}active{% endif %}" href="{{ url_for('damage_reports') }}"><i class="bi bi-exclamation-diamond-fill"></i><span>Zarar ko‘rgan</span>{% if nav_pending_damage %}<span class="nav-badge">{{ nav_pending_damage }}</span>{% endif %}</a>
         {% if effective_role in ['admin','manager','warehouse'] %}
         <a class="side-link {% if request.endpoint=='shipments' %}active{% endif %}" href="{{ url_for('shipments') }}"><i class="bi bi-truck"></i><span>Yuklar</span></a>
         <a class="side-link {% if request.endpoint=='reservations' %}active{% endif %}" href="{{ url_for('reservations') }}"><i class="bi bi-bookmark-check-fill"></i><span>Rezerv</span></a>
