@@ -31,6 +31,11 @@ from models import (
     StockMovement,
     SupportEvent,
     User,
+    Warehouse,
+    WorkTask,
+    Reservation,
+    Shipment,
+    InventoryCheck,
     db,
 )
 
@@ -271,6 +276,12 @@ def page_label(path):
         "/reports": "Hisobotlar",
         "/audit": "Audit",
         "/settings": "Sozlamalar",
+        "/tasks": "Vazifalar",
+        "/warehouses": "Omborlar",
+        "/reservations": "Rezerv",
+        "/shipments": "Yuklar",
+        "/inventory": "Inventarizatsiya",
+        "/alerts": "Ogohlantirishlar",
     }
     if path.startswith("/movement/IN"):
         return "Kirim"
@@ -970,6 +981,12 @@ def dashboard():
     cash_preview = CashRequest.query.filter_by(company_id=cid).order_by(CashRequest.created_at.desc()).limit(3).all()
     active_employees = User.query.filter_by(company_id=cid, active=True).count()
     total_quantity = sum(float(p.quantity or 0) for p in products)
+    expiring_limit = tashkent_now().date() + timedelta(days=30)
+    expiring_count = Product.query.filter(Product.company_id == cid, Product.expiry_date.isnot(None), Product.expiry_date <= expiring_limit).count()
+    open_tasks_count = WorkTask.query.filter_by(company_id=cid, status="OPEN").count()
+    active_reservations_count = Reservation.query.filter_by(company_id=cid, status="ACTIVE").count()
+    pending_shipments_count = Shipment.query.filter(Shipment.company_id == cid, Shipment.status != "YETKAZILDI").count()
+    warehouse_count = Warehouse.query.filter_by(company_id=cid, active=True).count()
     return render_template(
         "dashboard.html",
         products=products,
@@ -1002,6 +1019,11 @@ def dashboard():
         cash_preview=cash_preview,
         total_product_types=len(products),
         total_quantity=total_quantity,
+        expiring_count=expiring_count,
+        open_tasks_count=open_tasks_count,
+        active_reservations_count=active_reservations_count,
+        pending_shipments_count=pending_shipments_count,
+        warehouse_count=warehouse_count,
     )
 
 
@@ -1807,6 +1829,160 @@ def reports():
         low_count=low_count,
         movement_count=movement_count,
     )
+
+
+
+# ---------------- YANGI FUNKSIYALAR v17 ----------------
+
+@app.route("/alerts")
+@company_required
+def alerts():
+    cid = current_company_id()
+    products = Product.query.filter_by(company_id=cid).all()
+    today = tashkent_now().date()
+    low = [p for p in products if p.quantity <= p.min_quantity]
+    expiring = []
+    for p in products:
+        if p.expiry_date:
+            days = (p.expiry_date - today).days
+            if days <= 30:
+                expiring.append((p, days))
+    expiring.sort(key=lambda x: x[1])
+    return render_template("alerts.html", low=low, expiring=expiring)
+
+
+@app.route("/warehouses", methods=["GET","POST"])
+@role_required("admin","manager")
+def warehouses():
+    cid = current_company_id()
+    if request.method == "POST":
+        name=(request.form.get("name") or "").strip()
+        code=(request.form.get("code") or "").strip().upper()
+        if not name or not code:
+            flash("Ombor nomi va kodini kiriting", "danger")
+        else:
+            db.session.add(Warehouse(company_id=cid,name=name,code=code,address=(request.form.get("address") or "").strip() or None))
+            audit("CREATE","WAREHOUSE",details=f"{name} ({code})")
+            db.session.commit(); flash("Yangi ombor qo‘shildi", "success")
+        return redirect(url_for("warehouses"))
+    rows=Warehouse.query.filter_by(company_id=cid).order_by(Warehouse.name).all()
+    return render_template("warehouses.html", rows=rows)
+
+
+@app.post("/warehouses/<int:row_id>/toggle")
+@role_required("admin","manager")
+def warehouse_toggle(row_id):
+    row=tenant_get_or_404(Warehouse,row_id); row.active=not row.active
+    audit("UPDATE","WAREHOUSE",row.id,f"Faol={row.active}"); db.session.commit()
+    return redirect(url_for("warehouses"))
+
+
+@app.route("/tasks", methods=["GET","POST"])
+@company_required
+def tasks():
+    cid=current_company_id()
+    if request.method=="POST":
+        if current_user.role not in {"admin","manager","superadmin"}: abort(403)
+        title=(request.form.get("title") or "").strip()
+        if title:
+            assignee=request.form.get("assigned_to_id")
+            row=WorkTask(company_id=cid,title=title,description=(request.form.get("description") or "").strip() or None,assigned_to_id=int(assignee) if assignee else None,due_date=parse_date(request.form.get("due_date")),priority=(request.form.get("priority") or "NORMAL"),created_by_id=current_user.id)
+            db.session.add(row); audit("CREATE","TASK",details=title); db.session.commit(); flash("Vazifa yuborildi", "success")
+        return redirect(url_for("tasks"))
+    q=WorkTask.query.filter_by(company_id=cid)
+    if current_user.role in {"employee","warehouse"}: q=q.filter(db.or_(WorkTask.assigned_to_id==current_user.id, WorkTask.assigned_to_id.is_(None)))
+    rows=q.order_by(WorkTask.status.asc(),WorkTask.due_date.asc(),WorkTask.created_at.desc()).all()
+    users=User.query.filter_by(company_id=cid,active=True).order_by(User.full_name).all()
+    return render_template("tasks.html",rows=rows,users=users)
+
+
+@app.post("/tasks/<int:task_id>/toggle")
+@company_required
+def task_toggle(task_id):
+    row=tenant_get_or_404(WorkTask,task_id)
+    if current_user.role in {"employee","warehouse"} and row.assigned_to_id not in {None,current_user.id}: abort(403)
+    row.status="DONE" if row.status!="DONE" else "OPEN"
+    row.completed_at=datetime.utcnow() if row.status=="DONE" else None
+    audit("UPDATE","TASK",row.id,f"Status={row.status}"); db.session.commit()
+    return redirect(url_for("tasks"))
+
+
+@app.route("/reservations", methods=["GET","POST"])
+@role_required("admin","manager","warehouse")
+def reservations():
+    cid=current_company_id()
+    if request.method=="POST":
+        p=tenant_get_or_404(Product,int(request.form.get("product_id")))
+        amount=float(request.form.get("quantity") or 0)
+        if amount<=0 or amount>p.free_quantity:
+            flash("Rezerv miqdori noto‘g‘ri yoki erkin qoldiq yetarli emas", "danger")
+        else:
+            row=Reservation(company_id=cid,product_id=p.id,quantity=amount,order_no=(request.form.get("order_no") or "").strip() or None,customer_name=(request.form.get("customer_name") or "").strip() or None,note=(request.form.get("note") or "").strip() or None,created_by_id=current_user.id)
+            p.reserved_quantity=float(p.reserved_quantity or 0)+amount
+            db.session.add(row); audit("CREATE","RESERVATION",details=f"{p.name}: {amount}"); db.session.commit(); flash("Mahsulot rezerv qilindi", "success")
+        return redirect(url_for("reservations"))
+    rows=Reservation.query.filter_by(company_id=cid).order_by(Reservation.created_at.desc()).all()
+    products=Product.query.filter_by(company_id=cid).order_by(Product.name).all()
+    return render_template("reservations.html",rows=rows,products=products)
+
+
+@app.post("/reservations/<int:reservation_id>/release")
+@role_required("admin","manager","warehouse")
+def reservation_release(reservation_id):
+    row=tenant_get_or_404(Reservation,reservation_id)
+    if row.status=="ACTIVE":
+        row.product.reserved_quantity=max(float(row.product.reserved_quantity or 0)-float(row.quantity or 0),0)
+        row.status="RELEASED"; row.released_at=datetime.utcnow(); audit("UPDATE","RESERVATION",row.id,"Rezerv bo‘shatildi"); db.session.commit()
+    return redirect(url_for("reservations"))
+
+
+@app.route("/shipments", methods=["GET","POST"])
+@role_required("admin","manager","warehouse")
+def shipments():
+    cid=current_company_id()
+    if request.method=="POST":
+        title=(request.form.get("title") or "").strip()
+        if title:
+            row=Shipment(company_id=cid,title=title,destination=(request.form.get("destination") or "").strip() or None,vehicle_plate=(request.form.get("vehicle_plate") or "").strip().upper() or None,driver_name=(request.form.get("driver_name") or "").strip() or None,planned_date=parse_date(request.form.get("planned_date")),note=(request.form.get("note") or "").strip() or None,created_by_id=current_user.id)
+            db.session.add(row); audit("CREATE","SHIPMENT",details=title); db.session.commit(); flash("Yuk reja yaratildi", "success")
+        return redirect(url_for("shipments"))
+    rows=Shipment.query.filter_by(company_id=cid).order_by(Shipment.planned_date.asc(),Shipment.created_at.desc()).all()
+    return render_template("shipments.html",rows=rows)
+
+
+@app.post("/shipments/<int:shipment_id>/status")
+@role_required("admin","manager","warehouse")
+def shipment_status(shipment_id):
+    row=tenant_get_or_404(Shipment,shipment_id)
+    status=(request.form.get("status") or "REJA").upper()
+    if status not in {"REJA","TAYYOR","YUKLANDI","YETKAZILDI"}: status="REJA"
+    row.status=status; audit("UPDATE","SHIPMENT",row.id,f"Status={status}"); db.session.commit()
+    return redirect(url_for("shipments"))
+
+
+@app.route("/inventory", methods=["GET","POST"])
+@role_required("admin","manager","warehouse")
+def inventory_checks():
+    cid=current_company_id()
+    if request.method=="POST":
+        p=tenant_get_or_404(Product,int(request.form.get("product_id")))
+        counted=float(request.form.get("counted_quantity") or 0)
+        before=float(p.quantity or 0)
+        row=InventoryCheck(company_id=cid,product_id=p.id,system_quantity=before,counted_quantity=counted,note=(request.form.get("note") or "").strip() or None,created_by_id=current_user.id)
+        p.quantity=counted
+        db.session.add(row); audit("ADJUST","PRODUCT",p.id,f"Inventarizatsiya {before} -> {counted}"); db.session.commit(); flash("Inventarizatsiya saqlandi va qoldiq yangilandi", "success")
+        return redirect(url_for("inventory_checks"))
+    rows=InventoryCheck.query.filter_by(company_id=cid).order_by(InventoryCheck.created_at.desc()).limit(100).all()
+    products=Product.query.filter_by(company_id=cid).order_by(Product.name).all()
+    return render_template("inventory.html",rows=rows,products=products)
+
+
+@app.route("/purchase-list")
+@role_required("admin","manager")
+def purchase_list():
+    cid=current_company_id()
+    rows=Product.query.filter(Product.company_id==cid,Product.quantity<=Product.min_quantity).order_by(Product.name).all()
+    return render_template("purchase_list.html",rows=rows)
 
 
 @app.route("/settings")

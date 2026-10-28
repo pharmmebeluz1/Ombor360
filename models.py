@@ -231,3 +231,79 @@ class SupportEvent(db.Model):
 
     company = db.relationship("Company")
     user = db.relationship("User")
+
+
+class Warehouse(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey("company.id"), nullable=False, index=True)
+    name = db.Column(db.String(140), nullable=False)
+    code = db.Column(db.String(40), nullable=False)
+    address = db.Column(db.String(255), nullable=True)
+    active = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    company = db.relationship("Company")
+
+
+class WorkTask(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey("company.id"), nullable=False, index=True)
+    title = db.Column(db.String(180), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    assigned_to_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    due_date = db.Column(db.Date, nullable=True)
+    priority = db.Column(db.String(20), nullable=False, default="NORMAL")
+    status = db.Column(db.String(20), nullable=False, default="OPEN")
+    created_by_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    completed_at = db.Column(db.DateTime, nullable=True)
+    company = db.relationship("Company")
+    assigned_to = db.relationship("User", foreign_keys=[assigned_to_id])
+    created_by = db.relationship("User", foreign_keys=[created_by_id])
+
+
+class Reservation(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey("company.id"), nullable=False, index=True)
+    product_id = db.Column(db.Integer, db.ForeignKey("product.id"), nullable=False)
+    quantity = db.Column(db.Float, nullable=False)
+    order_no = db.Column(db.String(80), nullable=True)
+    customer_name = db.Column(db.String(160), nullable=True)
+    note = db.Column(db.String(255), nullable=True)
+    status = db.Column(db.String(20), nullable=False, default="ACTIVE")
+    created_by_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    released_at = db.Column(db.DateTime, nullable=True)
+    company = db.relationship("Company")
+    product = db.relationship("Product")
+    created_by = db.relationship("User")
+
+
+class Shipment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey("company.id"), nullable=False, index=True)
+    title = db.Column(db.String(180), nullable=False)
+    destination = db.Column(db.String(180), nullable=True)
+    vehicle_plate = db.Column(db.String(40), nullable=True)
+    driver_name = db.Column(db.String(120), nullable=True)
+    planned_date = db.Column(db.Date, nullable=True)
+    status = db.Column(db.String(30), nullable=False, default="REJA")
+    note = db.Column(db.String(255), nullable=True)
+    created_by_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    company = db.relationship("Company")
+    created_by = db.relationship("User")
+
+
+class InventoryCheck(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey("company.id"), nullable=False, index=True)
+    product_id = db.Column(db.Integer, db.ForeignKey("product.id"), nullable=False)
+    system_quantity = db.Column(db.Float, nullable=False)
+    counted_quantity = db.Column(db.Float, nullable=False)
+    note = db.Column(db.String(255), nullable=True)
+    created_by_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    company = db.relationship("Company")
+    product = db.relationship("Product")
+    created_by = db.relationship("User")

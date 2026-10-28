@@ -1,0 +1,15 @@
+Ombor360 v17 — yangi funksiyalar
+
+Qo‘shildi:
+- Ogohlantirishlar: kam qolgan va 30 kun ichida muddati tugaydigan mahsulotlar
+- Vazifalar: rahbar xodimga topshiriq yuboradi, xodim bajarildi deb belgilaydi
+- Yuklar: manzil, mashina, shofyor va status (REJA/TAYYOR/YUKLANDI/YETKAZILDI)
+- Rezerv: kelajak buyurtma uchun mahsulotni band qilish va bo‘shatish
+- Inventarizatsiya: tizim qoldig‘i bilan haqiqiy sanalgan qoldiqni solishtirish va yangilash
+- Ko‘p ombor: omborlar ro‘yxati va boshqaruvi
+- Xarid ro‘yxati: minimal qoldiqdan tushgan mahsulotlar avtomatik chiqadi
+- Bosh sahifada yangi holat kartalari
+- Xodim paneliga Mening vazifalarim tezkor tugmasi
+
+Eski funksiyalar saqlandi:
+QR/barcode, kirim, chiqim, sotuv, foyda/qarzdorlik, xodimlar, abonentlar, support, PWA, Xprinter 60x30.

@@ -14,6 +14,14 @@
   <div class="kpi-card" style="--kpi-color:#7c3aed;--kpi-tint:#f3efff"><div class="kpi-top"><div class="icon-box"><i class="bi bi-people-fill"></i></div><div><div class="kpi-label">Faol xodimlar</div><div class="kpi-number">{{ active_employees }} ta</div><div class="kpi-unit">Tizimda faol</div></div></div><div class="kpi-foot"><span class="pill pill-purple">Xodimlar</span><div class="muted-note">Faol hisoblar</div></div></div>
 </div>
 
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-4 col-xl"><a href="{{ url_for('alerts') }}" class="text-decoration-none"><div class="modern-card h-100"><div class="small text-secondary">Muddati yaqin</div><div class="fs-3 fw-bold text-warning">{{ expiring_count }}</div><div class="small">30 kun ichida</div></div></a></div>
+  <div class="col-6 col-md-4 col-xl"><a href="{{ url_for('shipments') }}" class="text-decoration-none"><div class="modern-card h-100"><div class="small text-secondary">Yuklar</div><div class="fs-3 fw-bold text-primary">{{ pending_shipments_count }}</div><div class="small">Jarayonda</div></div></a></div>
+  <div class="col-6 col-md-4 col-xl"><a href="{{ url_for('tasks') }}" class="text-decoration-none"><div class="modern-card h-100"><div class="small text-secondary">Vazifalar</div><div class="fs-3 fw-bold text-info">{{ open_tasks_count }}</div><div class="small">Bajarilmagan</div></div></a></div>
+  <div class="col-6 col-md-4 col-xl"><a href="{{ url_for('reservations') }}" class="text-decoration-none"><div class="modern-card h-100"><div class="small text-secondary">Rezerv</div><div class="fs-3 fw-bold text-success">{{ active_reservations_count }}</div><div class="small">Faol</div></div></a></div>
+  <div class="col-6 col-md-4 col-xl"><a href="{{ url_for('warehouses') }}" class="text-decoration-none"><div class="modern-card h-100"><div class="small text-secondary">Omborlar</div><div class="fs-3 fw-bold">{{ warehouse_count }}</div><div class="small">Faol ombor</div></div></a></div>
+</div>
+
 <div class="panel-grid">
   <section class="panel">
     <div class="panel-head"><h2 class="panel-title"><i class="bi bi-bar-chart-fill"></i>Kirim va chiqim grafigi</h2><div class="mini-select"><i class="bi bi-calendar3 me-1"></i> Oxirgi 6 oy</div></div>

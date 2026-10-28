@@ -33,10 +33,16 @@
   {% for row in label_rows %}
   <div class="print-label {% if label_type=='qr' %}qr-label{% else %}barcode-label{% endif %}">
     {% if label_type=='qr' %}
-      <div class="minimal-top">OMBOR360°</div>
-      <div class="minimal-name">{{ row.product.name }}</div>
-      <div class="minimal-body">
-        {% if row.qr_uri %}<img class="minimal-qr" src="{{ row.qr_uri }}" alt="{{ row.code }}">{% endif %}
+      <div class="label-name">{{ row.product.name }}</div>
+      <div class="qr-main">
+        {% if row.qr_uri %}<img class="qr-img" src="{{ row.qr_uri }}" alt="{{ row.code }}">{% endif %}
+        <div class="qr-info">
+          <div class="code"><b>{{ row.code }}</b></div>
+          <div><b>Joy:</b> {{ row.product.warehouse or 'Ombor' }}</div>
+          <div><b>Qator:</b> {{ row.product.row_code or '-' }} &nbsp; <b>Polka:</b> {{ row.product.shelf_code or '-' }}</div>
+          <div><b>Qoldiq:</b> {{ row.product.quantity|qty }} {{ row.product.unit }}</div>
+          {% if row.product.expiry_date %}<div><b>Muddat:</b> {{ row.product.expiry_date.strftime('%d.%m.%Y') }}</div>{% endif %}
+        </div>
       </div>
     {% else %}
       <div class="label-name">{{ row.product.name }}</div>
@@ -50,12 +56,12 @@
 <style>
 .label-toolbar{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:18px}
 .label-sheet{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start}
-.print-label{box-sizing:border-box;width:60mm;height:30mm;border:1px solid #111;border-radius:1.5mm;padding:1.3mm 1.5mm;overflow:hidden;background:#fff;color:#000}
+.print-label{box-sizing:border-box;width:60mm;height:30mm;border:1px solid #111;border-radius:1.5mm;padding:1.4mm 1.6mm;overflow:hidden;background:#fff;color:#000}
 .label-name{height:5mm;font-size:12px;line-height:5mm;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-bottom:.25mm solid #111;margin-bottom:1mm}
-.minimal-top{height:4mm;line-height:4mm;font-size:8.8px;font-weight:900;letter-spacing:.3px}
-.minimal-name{height:5.5mm;line-height:5.2mm;font-size:13px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-top:.2mm solid #111;border-bottom:.2mm solid #111;padding:.35mm 0 .2mm 0;margin:.4mm 0 1mm 0}
-.minimal-body{height:16.5mm;display:flex;align-items:center;justify-content:center}
-.minimal-qr{width:15.5mm;height:15.5mm;object-fit:contain;display:block}
+.qr-main{height:21mm;display:flex;align-items:center;gap:1.5mm}
+.qr-img{width:20mm;height:20mm;object-fit:contain;flex:0 0 20mm}
+.qr-info{font-size:7.8px;line-height:1.28;overflow:hidden;flex:1;min-width:0}
+.qr-info>div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:.35mm}.qr-info .code{font-size:7px}
 .barcode-label{display:flex;flex-direction:column}.barcode-img{display:block;width:55mm;height:14mm;object-fit:fill;margin:.5mm auto 0}.barcode-fallback{font-family:monospace;font-size:13px;font-weight:700;text-align:center;padding:3mm 0}.barcode-info{font-size:7.5px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.5mm}
 @page{size:60mm 30mm;margin:0}
 @media print{
